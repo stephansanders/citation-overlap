@@ -9,11 +9,12 @@ import re # regex
 import string # string manipulation
 import argparse # arguments parser
 import jellyfish # string comparison # pip3 install jellyfish
+import hdbscan # pip3 install hdbscan
 
 # How to perform the search
 
 # Pubmed
-# Need to use the old verrsion as new one lacks the file download https://www.ncbi.nlm.nih.gov/pubmed/
+# Need to use the old version as new one lacks the file download https://www.ncbi.nlm.nih.gov/pubmed/
 # Perform search, e.g. (PDD OR ASD OR autism*) AND (biomarker* OR marker* OR endophenotype*)
 # Click 'Send To', Select 'File', Select 'CSV'
 
@@ -23,6 +24,16 @@ import jellyfish # string comparison # pip3 install jellyfish
 # Records added to Embase (including end date): 01-01-1900 to 29-02-2020
 # Select all records
 # Click 'Export', for Choose a format: select 'CSV - Fields by Column', for Choose an output: select 'Full Record', do not tick 'Include search query in export'
+
+# Scopus
+# TITLE-ABS-KEY ( ( pdd  OR  asd  OR  autism* )  AND  ( biomarker*  OR  marker*  OR  endophenotype* ) )  AND  ( LIMIT-TO ( LANGUAGE ,  "English" ) )  AND  ( LIMIT-TO ( DOCTYPE ,  "ar" ) )  AND  ( LIMIT-TO ( SRCTYPE ,  "j" ) ) 
+# Can only download 2000 at a time in CSV format. Use "Limit to" in the filters to the left to select groups of ≤2,000, e.g. by year
+# Click arrow next to 'All' above the column headings and below 'Analyze search results'; click 'Select all'
+# Click 'Export'
+# Select 'CSV Export' 
+# Add PubMed ID (you may want to add Abstract too)
+# Click Export
+# Combine the lists in a text editor or Google Sheet, not in Excel
 
 # Parse arguments
 parser = argparse.ArgumentParser(description='Find overlaps between articles downloaded from Medline, Embase, and Scopus')
@@ -856,7 +867,7 @@ if args.medline:
 		pubmedColCount = len(pubmedHeaders)
 		pubmedHeadersOut = '\t'.join(pubmedHeaders)
 		pubOut.write(f'Medline_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle\tTitle_Key\t')
-		pubOut.write(f'Journal_Details\tSimilar_Records\tSimilarity\tSimilar_group\t{pubmedHeadersOut}\n')
+		pubOut.write(f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tSimilar_group\t{pubmedHeadersOut}\n')
 
 		lineCount = 0
 		for row in pubmedCsv:
@@ -917,7 +928,8 @@ if args.medline:
 		# Print out clean version
 		pubOut.write(f'{medId}\t{pmidHere}\t{medlineDict[medId]["authorNames"]}\t{medlineDict[medId]["year"]}\t')
 		pubOut.write(f'{authorKeyHere}\t{medlineDict[medId]["title"]}\t{titleMinHere}\t')
-		pubOut.write(f'{medlineDict[medId]["journal"]}\t{match}\t{basisOut}\t{matchGroupOut}\t{medlineDict[medId]["row"]}\n')
+		pubOut.write(f'{medlineDict[medId]["journal"]}\t{medlineDict[medId]["journalKey"]}\t')
+		pubOut.write(f'{match}\t{basisOut}\t{matchGroupOut}\t{medlineDict[medId]["row"]}\n')
 
 # Process embase file
 embaseDict = {}
@@ -942,7 +954,7 @@ if args.embase:
 		embaseColCount = len(embaseHeaders)
 		embaseHeadersOut = '\t'.join(embaseHeaders)
 		embOut.write(f'Embase_ID\tPMID\tEMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle\tTitle_Key\t')
-		embOut.write(f'Journal_Details\tSimilar_Records\tSimilarity\tSimilar_group\t{embaseHeadersOut}\n')
+		embOut.write(f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tSimilar_group\t{embaseHeadersOut}\n')
 
 		lineCount = 0
 		for row in embaseCsv:
@@ -1005,7 +1017,8 @@ if args.embase:
 		# Print out clean version
 		embOut.write(f'{embId}\t{pmidHere}\t{emidHere}\t{embaseDict[embId]["authorNames"]}\t{embaseDict[embId]["year"]}\t')
 		embOut.write(f'{authorKeyHere}\t{embaseDict[embId]["title"]}\t{titleMinHere}\t')
-		embOut.write(f'{embaseDict[embId]["journal"]}\t{match}\t{basisOut}\t{matchGroupOut}\t{embaseDict[embId]["row"]}\n')
+		embOut.write(f'{embaseDict[embId]["journal"]}\t{embaseDict[embId]["journalKey"]}\t')
+		embOut.write(f'{match}\t{basisOut}\t{matchGroupOut}\t{embaseDict[embId]["row"]}\n')
 
 # Process scopus file
 scopusDict = {}
@@ -1030,7 +1043,7 @@ if args.scopus:
 		scopusColCount = len(scopusHeaders)
 		scopusHeadersOut = '\t'.join(scopusHeaders)
 		scoOut.write(f'Embase_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle\tTitle_Key\t')
-		scoOut.write(f'Journal_Details\tSimilar_Records\tSimilarity\tSimilar_group\t{scopusHeadersOut}\n')
+		scoOut.write(f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tSimilar_group\t{scopusHeadersOut}\n')
 
 		lineCount = 0
 		for row in scopusCsv:
@@ -1091,7 +1104,8 @@ if args.scopus:
 		# Print out clean version
 		scoOut.write(f'{scoId}\t{pmidHere}\t{scopusDict[scoId]["authorNames"]}\t{scopusDict[scoId]["year"]}\t')
 		scoOut.write(f'{authorKeyHere}\t{scopusDict[scoId]["title"]}\t{titleMinHere}\t')
-		scoOut.write(f'{scopusDict[scoId]["journal"]}\t{match}\t{basisOut}\t{matchGroupOut}\t{scopusDict[scoId]["row"]}\n')
+		scoOut.write(f'{scopusDict[scoId]["journal"]}\t{scopusDict[scoId]["journalKey"]}\t')
+		scoOut.write(f'{match}\t{basisOut}\t{matchGroupOut}\t{scopusDict[scoId]["row"]}\n')
 
 # Process embase file
 firstDict = {}
@@ -1123,7 +1137,7 @@ if args.first:
 		firstColCount = len(firstHeaders)
 		firstHeadersOut = '\t'.join(firstHeaders)
 		firOut.write(f'Embase_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle\tTitle_Key\t')
-		firOut.write(f'Journal_Details\tSimilar_Records\tSimilarity\tSimilar_group\t{firstHeadersOut}\n')
+		firOut.write(f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tSimilar_group\t{firstHeadersOut}\n')
 
 		lineCount = 0
 		for row in firstCsv:
@@ -1185,7 +1199,8 @@ if args.first:
 		# Print out clean version
 		firOut.write(f'{firId}\t{pmidHere}\t{firstDict[firId]["authorNames"]}\t{firstDict[firId]["year"]}\t')
 		firOut.write(f'{authorKeyHere}\t{firstDict[firId]["title"]}\t{titleMinHere}\t')
-		firOut.write(f'{firstDict[firId]["journal"]}\t{match}\t{basisOut}\t{matchGroupOut}\t{firstDict[firId]["row"]}\n')
+		firOut.write(f'{firstDict[firId]["journal"]}\t{firstDict[firId]["journalKey"]}\t')
+		firOut.write(f'{match}\t{basisOut}\t{matchGroupOut}\t{firstDict[firId]["row"]}\n')
 
 print ('\n############################################################################')
 print (' Looking for overlaps')
