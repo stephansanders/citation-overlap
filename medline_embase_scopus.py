@@ -1,5 +1,5 @@
 # Description: Process Embase and Pubmed search results and find matches
-# Usage: python3 medline_embase_scopus.py 
+# Usage: python3 medline_embase_scopus.py -m pubmed_result.txt -e embase_noTitle.txt -s scopus_all.txt
 # Author: Stephan Sanders
 
 import csv # CSV files
@@ -715,7 +715,7 @@ def subGroupV2(idList, medlineDict, embaseDict, scopusDict, firstDict, matchGrou
 					titleMinActualDiff = jellyfish.damerau_levenshtein_distance(tOne, tTwo)
 					titleMinDiffWeight = 30 - int(titleMinActualDiff / (len(tOne) + len(tTwo)) * 30)
 
-					# Find the jounral distance
+					# Find the journal distance
 					journalKeyActualDiff = jellyfish.damerau_levenshtein_distance(jOne, jTwo)
 					journalKeyDiffWeight = 20 - int(journalKeyActualDiff / (len(jOne) + len(jTwo)) * 20)
 
