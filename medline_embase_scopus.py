@@ -117,7 +117,7 @@ def medlineExtract(row):
 	if pmidMatch:
 		pmid = pmidMatch.group(1)
 	else:
-		print ('ERR: No PMID: '+key)
+		print ('ERR: No PMID: '+pmidField)
 
 	# Get the shortest unique title
 	title = 'noTitle'
