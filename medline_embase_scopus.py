@@ -1,5 +1,5 @@
 # Description: Process Embase and Pubmed search results and find matches
-# Usage: python3 medline_embase_scopus.py -m pubmed_result.txt -e embase_noTitle.txt -s scopus_all.txt
+# Usage: python3 medline_embase_scopus.py -m pubmed_result.csv -e embase_noTitle.csv -s scopus_all.csv
 # Author: Stephan Sanders
 
 import csv # CSV files
@@ -51,7 +51,7 @@ globalAuthorKeyDict = {}
 globalTitleMinDict = {}
 globalJournalKeyDict = {}
 globalmatchCount = 0
-outputFileName = 'medline_embase_scopus_combo.txt'
+outputFileName = 'medline_embase_scopus_combo.tsv'
 if args.out:
 	outputFileName = args.out
 allOut = open(outputFileName, 'w')
@@ -415,7 +415,7 @@ def fileNamer(inputFile):
 	inputFileBits = inputFile.split('.')
 	inputFileBits.pop() # remove extension
 	inputFileBase = '.'.join(inputFileBits)
-	cleaninputFileName = f'{inputFileBase}_clean.txt'
+	cleaninputFileName = f'{inputFileBase}_clean.tsv'
 	return cleaninputFileName
 
 # Get a list of possible matches
