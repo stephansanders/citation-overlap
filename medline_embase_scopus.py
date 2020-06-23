@@ -35,29 +35,6 @@ import hdbscan # pip3 install hdbscan
 # Click Export
 # Combine the lists in a text editor or Google Sheet, not in Excel
 
-# Parse arguments
-parser = argparse.ArgumentParser(description='Find overlaps between articles downloaded from Medline, Embase, and Scopus')
-parser.add_argument('-m', '--medline', type=str, help='Medline CSV file')
-parser.add_argument('-e', '--embase', type=str, help='Embase CSV file')
-parser.add_argument('-s', '--scopus', type=str, help='Scopus CSV file')
-parser.add_argument('-f', '--first', type=str, help='Initial search CSV file')
-parser.add_argument('-o', '--out', type=str, help='Name and location of the output file')
-parser.add_argument('-d', '--debug', action='store_true', help='Debugging function')
-args = parser.parse_args()
-
-# Key variables and output file
-globalPmidDict = {}
-globalAuthorKeyDict = {}
-globalTitleMinDict = {}
-globalJournalKeyDict = {}
-globalmatchCount = 0
-outputFileName = 'medline_embase_scopus_combo.tsv'
-if args.out:
-	outputFileName = args.out
-allOut = open(outputFileName, 'w')
-allOut.write(f'Paper_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle\tTitle_Key\t')
-allOut.write(f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tGroup\tPapers_In_Group\tMedline\tEmbase\tScopus\tFirst\tMainRecord\n')
-
 # Remove periods and replace spaces with underscores
 def authorNameProcess (name):
 	newName = name.translate(str.maketrans('', '', string.punctuation)) # remove punctuation
@@ -330,7 +307,7 @@ def scopusExtract(row):
 	return pmid, authorNames, authorKey, title, titleMin, year, journal, journalKey, fullRow
 
 # Extract key info from Medline
-def firstExtract(row):
+def firstExtract(row, lineCount):
 
 	# Get the year
 	year = 'NoYear'
@@ -816,7 +793,7 @@ def subGroupV2(idList, medlineDict, embaseDict, scopusDict, firstDict, matchGrou
 	return idToGroup, idToSubgroup, subgroupToId, idToDistance
 
 # Find matches across all input files
-def globalMatcher(idHere, pmid, authorKey, titleMin, globalPmidDict, globalauthorKeyDict, globaltitleMinDict, globalJournalKeyDict):
+def globalMatcher(idHere, pmid, authorKey, titleMin, globalPmidDict, globalauthorKeyDict, globaltitleMinDict, globalJournalKeyDict, journalKey):
 
 	# Record pmid matches
 	if pmid in globalPmidDict:
@@ -844,399 +821,495 @@ def globalMatcher(idHere, pmid, authorKey, titleMin, globalPmidDict, globalautho
 
 	return globalPmidDict, globalauthorKeyDict, globaltitleMinDict, globalJournalKeyDict
 
-# Process medline file
-medlineDict = {}
-if args.medline:
 
-	print ('\n############################################################################')
-	print (' Processing a Medline file')
-	print ('############################################################################\n')
-
-	cleanFileName = fileNamer(args.medline)
-	pubOut = open(cleanFileName, 'w')
-
-	# Process the file
-	pmidDict = {}
-	authorKeyDict = {}
-	titleMinDict = {}
-	journalKeyDict = {}
-	with open(args.medline, encoding="utf8") as csvfile:
-
-		pubmedCsv = csv.DictReader(csvfile, delimiter=',', quotechar='"',)
-		pubmedHeaders = list(pubmedCsv.fieldnames)
-		pubmedColCount = len(pubmedHeaders)
-		pubmedHeadersOut = '\t'.join(pubmedHeaders)
-		pubOut.write(f'Medline_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle\tTitle_Key\t')
-		pubOut.write(f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tSimilar_group\t{pubmedHeadersOut}\n')
-
-		lineCount = 0
-		for row in pubmedCsv:
-			lineCount += 1
-			medId = 'MED_'+'{:05d}'.format(lineCount)
-			pmid, authorNames, authorKey, title, titleMin, year, journal, journalKey, fullRow = medlineExtract(row)
-			
-			# Store the info
-			medlineDict[medId] = {}
-			medlineDict[medId]['row'] = fullRow
-			medlineDict[medId]['pmid'] = pmid
-			medlineDict[medId]['authorNames'] = authorNames
-			medlineDict[medId]['authorKey'] = authorKey
-			medlineDict[medId]['title'] = title
-			medlineDict[medId]['titleMin'] = titleMin
-			medlineDict[medId]['year'] = year
-			medlineDict[medId]['journal'] = journal
-			medlineDict[medId]['journalKey'] = journalKey
-
-			# Record pmid matches
-			if pmid in pmidDict:
-				pmidDict[pmid] = f'{pmidDict[pmid]};{medId}'
-			else:
-				pmidDict[pmid] = medId
-
-			# Record authorKey matches
-			if authorKey in authorKeyDict:
-				authorKeyDict[authorKey] = f'{authorKeyDict[authorKey]};{medId}'
-			else:
-				authorKeyDict[authorKey] = medId
-
-			# Record titleMin matches
-			if titleMin in titleMinDict:
-				titleMinDict[titleMin] = f'{titleMinDict[titleMin]};{medId}'
-			else:
-				titleMinDict[titleMin] = medId
-
-			# Record journalKey matches
-			if journalKey in journalKeyDict:
-				journalKeyDict[journalKey] = f'{journalKeyDict[journalKey]};{medId}'
-			else:
-				journalKeyDict[journalKey] = medId
-
-			# Record global matches
-			globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict = globalMatcher(medId, pmid, authorKey, titleMin, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict)
-
-	# Printout the file
-	keyList = medlineDict.keys()
-	matchCount = 0
-	matchGroup = {}
-	for medId in sorted (keyList):
-		
-		pmidHere = medlineDict[medId]['pmid']
-		authorKeyHere = medlineDict[medId]['authorKey']
-		titleMinHere = medlineDict[medId]['titleMin']
-		match, basisOut, matchGroupOut, matchCount, matchGroup = matchFinder(pmidHere, authorKeyHere, titleMinHere, pmidDict, authorKeyDict, titleMinDict, matchCount, medId, matchGroup)
-
-		# Print out clean version
-		pubOut.write(f'{medId}\t{pmidHere}\t{medlineDict[medId]["authorNames"]}\t{medlineDict[medId]["year"]}\t')
-		pubOut.write(f'{authorKeyHere}\t{medlineDict[medId]["title"]}\t{titleMinHere}\t')
-		pubOut.write(f'{medlineDict[medId]["journal"]}\t{medlineDict[medId]["journalKey"]}\t')
-		pubOut.write(f'{match}\t{basisOut}\t{matchGroupOut}\t{medlineDict[medId]["row"]}\n')
-
-# Process embase file
-embaseDict = {}
-if args.embase:
-
-	print ('\n############################################################################')
-	print (' Processing an Embase file')
-	print ('############################################################################\n')
-
-	cleanFileName = fileNamer(args.embase)
-	embOut = open(cleanFileName, 'w')
-
-	# Process the file
-	pmidDict = {}
-	authorKeyDict = {}
-	titleMinDict = {}
-	journalKeyDict = {}
-	with open(args.embase, encoding="utf8") as csvfile:
-
-		embaseCsv = csv.DictReader(csvfile, delimiter=',', quotechar='"',)
-		embaseHeaders = list(embaseCsv.fieldnames)
-		embaseColCount = len(embaseHeaders)
-		embaseHeadersOut = '\t'.join(embaseHeaders)
-		embOut.write(f'Embase_ID\tPMID\tEMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle\tTitle_Key\t')
-		embOut.write(f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tSimilar_group\t{embaseHeadersOut}\n')
-
-		lineCount = 0
-		for row in embaseCsv:
-			lineCount += 1
-			embId = 'EMB_'+'{:05d}'.format(lineCount)
-			pmid, emid, authorNames, authorKey, title, titleMin, year, journal, journalKey, fullRow = embaseExtract(row)
-
-			# Store the info
-			embaseDict[embId] = {}
-			embaseDict[embId]['row'] = fullRow
-			embaseDict[embId]['pmid'] = pmid
-			embaseDict[embId]['emid'] = emid
-			embaseDict[embId]['authorNames'] = authorNames
-			embaseDict[embId]['authorKey'] = authorKey
-			embaseDict[embId]['title'] = title
-			embaseDict[embId]['titleMin'] = titleMin
-			embaseDict[embId]['year'] = year
-			embaseDict[embId]['journal'] = journal
-			embaseDict[embId]['journalKey'] = journalKey
-
-			# Record pmid matches
-			if pmid in pmidDict:
-				pmidDict[pmid] = f'{pmidDict[pmid]};{embId}'
-			else:
-				pmidDict[pmid] = embId
-
-			# Record authorKey matches
-			if authorKey in authorKeyDict:
-				authorKeyDict[authorKey] = f'{authorKeyDict[authorKey]};{embId}'
-			else:
-				authorKeyDict[authorKey] = embId
-
-			# Record titleMin matches
-			if titleMin in titleMinDict:
-				titleMinDict[titleMin] = f'{titleMinDict[titleMin]};{embId}'
-			else:
-				titleMinDict[titleMin] = embId
-
-			# Record journalKey matches
-			if journalKey in journalKeyDict:
-				journalKeyDict[journalKey] = f'{journalKeyDict[journalKey]};{embId}'
-			else:
-				journalKeyDict[journalKey] = embId
-
-			# Record global matches
-			globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict = globalMatcher(embId, pmid, authorKey, titleMin, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict)
-
-	# Printout the file
-	keyList = embaseDict.keys()
-	matchCount = 0
-	matchGroup = {}
-	for embId in sorted (keyList):
-
-		pmidHere = embaseDict[embId]['pmid']
-		authorKeyHere = embaseDict[embId]['authorKey']
-		titleMinHere = embaseDict[embId]['titleMin']
-		match, basisOut, matchGroupOut, matchCount, matchGroup = matchFinder(pmidHere, authorKeyHere, titleMinHere, pmidDict, authorKeyDict, titleMinDict, matchCount, embId, matchGroup)
-		emidHere = embaseDict[embId]['emid']
-
-		# Print out clean version
-		embOut.write(f'{embId}\t{pmidHere}\t{emidHere}\t{embaseDict[embId]["authorNames"]}\t{embaseDict[embId]["year"]}\t')
-		embOut.write(f'{authorKeyHere}\t{embaseDict[embId]["title"]}\t{titleMinHere}\t')
-		embOut.write(f'{embaseDict[embId]["journal"]}\t{embaseDict[embId]["journalKey"]}\t')
-		embOut.write(f'{match}\t{basisOut}\t{matchGroupOut}\t{embaseDict[embId]["row"]}\n')
-
-# Process scopus file
-scopusDict = {}
-if args.scopus:
-
-	print ('\n############################################################################')
-	print (' Processing a Scopus file')
-	print ('############################################################################\n')
-
-	cleanFileName = fileNamer(args.scopus)
-	scoOut = open(cleanFileName, 'w')
-
-	# Process the file
-	pmidDict = {}
-	authorKeyDict = {}
-	titleMinDict = {}
-	journalKeyDict = {}
-	with open(args.scopus, encoding="utf8") as csvfile:
-
-		scopusCsv = csv.DictReader(csvfile, delimiter=',', quotechar='"',)
-		scopusHeaders = list(scopusCsv.fieldnames)
-		scopusColCount = len(scopusHeaders)
-		scopusHeadersOut = '\t'.join(scopusHeaders)
-		scoOut.write(f'Embase_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle\tTitle_Key\t')
-		scoOut.write(f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tSimilar_group\t{scopusHeadersOut}\n')
-
-		lineCount = 0
-		for row in scopusCsv:
-			lineCount += 1
-			scoId = 'SCO_'+'{:05d}'.format(lineCount)
-			pmid, authorNames, authorKey, title, titleMin, year, journal, journalKey, fullRow = scopusExtract(row)
-
-			# Store the info
-			scopusDict[scoId] = {}
-			scopusDict[scoId]['row'] = fullRow
-			scopusDict[scoId]['pmid'] = pmid
-			scopusDict[scoId]['authorNames'] = authorNames
-			scopusDict[scoId]['authorKey'] = authorKey
-			scopusDict[scoId]['title'] = title
-			scopusDict[scoId]['titleMin'] = titleMin
-			scopusDict[scoId]['year'] = year
-			scopusDict[scoId]['journal'] = journal
-			scopusDict[scoId]['journalKey'] = journalKey
-
-			# Record pmid matches
-			if pmid in pmidDict:
-				pmidDict[pmid] = f'{pmidDict[pmid]};{scoId}'
-			else:
-				pmidDict[pmid] = scoId
-
-			# Record authorKey matches
-			if authorKey in authorKeyDict:
-				authorKeyDict[authorKey] = f'{authorKeyDict[authorKey]};{scoId}'
-			else:
-				authorKeyDict[authorKey] = scoId
-
-			# Record titleMin matches
-			if titleMin in titleMinDict:
-				titleMinDict[titleMin] = f'{titleMinDict[titleMin]};{scoId}'
-			else:
-				titleMinDict[titleMin] = scoId
-
-			# Record journalKey matches
-			if journalKey in journalKeyDict:
-				journalKeyDict[journalKey] = f'{journalKeyDict[journalKey]};{scoId}'
-			else:
-				journalKeyDict[journalKey] = scoId
-
-			# Record global matches
-			globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict = globalMatcher(scoId, pmid, authorKey, titleMin, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict)
-
-	# Printout the file
-	keyList = scopusDict.keys()
-	matchCount = 0
-	matchGroup = {}
-	for scoId in sorted (keyList):
-
-		pmidHere = scopusDict[scoId]['pmid']
-		authorKeyHere = scopusDict[scoId]['authorKey']
-		titleMinHere = scopusDict[scoId]['titleMin']
-		match, basisOut, matchGroupOut, matchCount, matchGroup = matchFinder(pmidHere, authorKeyHere, titleMinHere, pmidDict, authorKeyDict, titleMinDict, matchCount, scoId, matchGroup)
-		
-		# Print out clean version
-		scoOut.write(f'{scoId}\t{pmidHere}\t{scopusDict[scoId]["authorNames"]}\t{scopusDict[scoId]["year"]}\t')
-		scoOut.write(f'{authorKeyHere}\t{scopusDict[scoId]["title"]}\t{titleMinHere}\t')
-		scoOut.write(f'{scopusDict[scoId]["journal"]}\t{scopusDict[scoId]["journalKey"]}\t')
-		scoOut.write(f'{match}\t{basisOut}\t{matchGroupOut}\t{scopusDict[scoId]["row"]}\n')
-
-# Process embase file
-firstDict = {}
-if args.first:
-
-	print ('\n############################################################################')
-	print (' Processing the Initial search file')
-	print ('############################################################################\n')
-
-	# Load the skip list
-	skipListName = '/Users/stephansanders/Dropbox/Papers_author/Mara_Biomarkers/biomarkersdraft2/SS_version/first_skip_list.txt'
-	skipList = open(skipListName, 'r')
-	skipper = {}
-	for entry in skipList:
-		skipper[entry.strip()] = 5
-
-	cleanFileName = fileNamer(args.first)
-	firOut = open(cleanFileName, 'w')
-
-	# Process the file
-	pmidDict = {}
-	authorKeyDict = {}
-	titleMinDict = {}
-	journalKeyDict = {}
-	with open(args.first, encoding="utf8") as csvfile:
-
-		firstCsv = csv.DictReader(csvfile, delimiter=',', quotechar='"',)
-		firstHeaders = list(firstCsv.fieldnames)
-		firstColCount = len(firstHeaders)
-		firstHeadersOut = '\t'.join(firstHeaders)
-		firOut.write(f'Embase_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle\tTitle_Key\t')
-		firOut.write(f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tSimilar_group\t{firstHeadersOut}\n')
-
-		lineCount = 0
-		for row in firstCsv:
-			lineCount += 1
-			firId = 'ONE_'+'{:05d}'.format(lineCount)
-			if firId not in skipper:
-				pmid, authorNames, authorKey, title, titleMin, year, journal, journalKey, fullRow = firstExtract(row)
-
+def main():
+	# Parse arguments
+	parser = argparse.ArgumentParser(
+		description='Find overlaps between articles downloaded from Medline, Embase, and Scopus')
+	parser.add_argument('-m', '--medline', type=str, help='Medline CSV file')
+	parser.add_argument('-e', '--embase', type=str, help='Embase CSV file')
+	parser.add_argument('-s', '--scopus', type=str, help='Scopus CSV file')
+	parser.add_argument('-f', '--first', type=str, help='Initial search CSV file')
+	parser.add_argument('-o', '--out', type=str, help='Name and location of the output file')
+	parser.add_argument('-d', '--debug', action='store_true', help='Debugging function')
+	args = parser.parse_args()
+	
+	# Key variables and output file
+	globalPmidDict = {}
+	globalAuthorKeyDict = {}
+	globalTitleMinDict = {}
+	globalJournalKeyDict = {}
+	globalmatchCount = 0
+	outputFileName = 'medline_embase_scopus_combo.tsv'
+	if args.out:
+		outputFileName = args.out
+	allOut = open(outputFileName, 'w')
+	allOut.write(f'Paper_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle\tTitle_Key\t')
+	allOut.write(
+		f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tGroup\tPapers_In_Group\tMedline\tEmbase\tScopus\tFirst\tMainRecord\n')
+	
+	# Process medline file
+	medlineDict = {}
+	if args.medline:
+	
+		print ('\n############################################################################')
+		print (' Processing a Medline file')
+		print ('############################################################################\n')
+	
+		cleanFileName = fileNamer(args.medline)
+		pubOut = open(cleanFileName, 'w')
+	
+		# Process the file
+		pmidDict = {}
+		authorKeyDict = {}
+		titleMinDict = {}
+		journalKeyDict = {}
+		with open(args.medline, encoding="utf8") as csvfile:
+	
+			pubmedCsv = csv.DictReader(csvfile, delimiter=',', quotechar='"',)
+			pubmedHeaders = list(pubmedCsv.fieldnames)
+			pubmedColCount = len(pubmedHeaders)
+			pubmedHeadersOut = '\t'.join(pubmedHeaders)
+			pubOut.write(f'Medline_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle\tTitle_Key\t')
+			pubOut.write(f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tSimilar_group\t{pubmedHeadersOut}\n')
+	
+			lineCount = 0
+			for row in pubmedCsv:
+				lineCount += 1
+				medId = 'MED_'+'{:05d}'.format(lineCount)
+				pmid, authorNames, authorKey, title, titleMin, year, journal, journalKey, fullRow = medlineExtract(row)
+				
 				# Store the info
-				firstDict[firId] = {}
-				firstDict[firId]['row'] = fullRow
-				firstDict[firId]['pmid'] = pmid
-				firstDict[firId]['authorNames'] = authorNames
-				firstDict[firId]['authorKey'] = authorKey
-				firstDict[firId]['title'] = title
-				firstDict[firId]['titleMin'] = titleMin
-				firstDict[firId]['year'] = year
-				firstDict[firId]['journal'] = journal
-				firstDict[firId]['journalKey'] = journalKey
-
+				medlineDict[medId] = {}
+				medlineDict[medId]['row'] = fullRow
+				medlineDict[medId]['pmid'] = pmid
+				medlineDict[medId]['authorNames'] = authorNames
+				medlineDict[medId]['authorKey'] = authorKey
+				medlineDict[medId]['title'] = title
+				medlineDict[medId]['titleMin'] = titleMin
+				medlineDict[medId]['year'] = year
+				medlineDict[medId]['journal'] = journal
+				medlineDict[medId]['journalKey'] = journalKey
+	
 				# Record pmid matches
 				if pmid in pmidDict:
-					pmidDict[pmid] = f'{pmidDict[pmid]};{firId}'
+					pmidDict[pmid] = f'{pmidDict[pmid]};{medId}'
 				else:
-					pmidDict[pmid] = firId
-
+					pmidDict[pmid] = medId
+	
 				# Record authorKey matches
 				if authorKey in authorKeyDict:
-					authorKeyDict[authorKey] = f'{authorKeyDict[authorKey]};{firId}'
+					authorKeyDict[authorKey] = f'{authorKeyDict[authorKey]};{medId}'
 				else:
-					authorKeyDict[authorKey] = firId
-
+					authorKeyDict[authorKey] = medId
+	
 				# Record titleMin matches
 				if titleMin in titleMinDict:
-					titleMinDict[titleMin] = f'{titleMinDict[titleMin]};{firId}'
-				elif titleMin != '.':
-					titleMinDict[titleMin] = firId
-
+					titleMinDict[titleMin] = f'{titleMinDict[titleMin]};{medId}'
+				else:
+					titleMinDict[titleMin] = medId
+	
 				# Record journalKey matches
 				if journalKey in journalKeyDict:
-					journalKeyDict[journalKey] = f'{journalKeyDict[journalKey]};{firId}'
+					journalKeyDict[journalKey] = f'{journalKeyDict[journalKey]};{medId}'
 				else:
-					journalKeyDict[journalKey] = firId
-
+					journalKeyDict[journalKey] = medId
+	
 				# Record global matches
-				globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict = globalMatcher(firId, pmid, authorKey, titleMin, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict)
-
-	# Printout the file
-	keyList = firstDict.keys()
-	matchCount = 0
-	matchGroup = {}
-	for firId in sorted (keyList):
-
-		pmidHere = firstDict[firId]['pmid']
-		authorKeyHere = firstDict[firId]['authorKey']
-		titleMinHere = firstDict[firId]['titleMin']
-		match, basisOut, matchGroupOut, matchCount, matchGroup = matchFinder(pmidHere, authorKeyHere, titleMinHere, pmidDict, authorKeyDict, titleMinDict, matchCount, firId, matchGroup)
-		
-		# Print out clean version
-		firOut.write(f'{firId}\t{pmidHere}\t{firstDict[firId]["authorNames"]}\t{firstDict[firId]["year"]}\t')
-		firOut.write(f'{authorKeyHere}\t{firstDict[firId]["title"]}\t{titleMinHere}\t')
-		firOut.write(f'{firstDict[firId]["journal"]}\t{firstDict[firId]["journalKey"]}\t')
-		firOut.write(f'{match}\t{basisOut}\t{matchGroupOut}\t{firstDict[firId]["row"]}\n')
-
-print ('\n############################################################################')
-print (' Looking for overlaps')
-print ('############################################################################\n')
-
-matchGroupNew = {}
-matchCountHere = 0
-idToGroup = {}
-idToSubgroup = {}
-subgroupToId = {}
-subgroupToId['.'] = ''
-idToDistance = {}
-# Look for overlaps between all the files
-if args.medline:
-	for medId in medlineDict:
-		# if medId == 'MED_01933':
-		# 	sys.exit('Found MED_01933')
-
-		pmidHere = medlineDict[medId]['pmid']
-		authorKeyHere = medlineDict[medId]['authorKey']
-		titleMinHere = medlineDict[medId]['titleMin']
-		journalKey = medlineDict[medId]['journalKey']
-		
-		if medId not in idToSubgroup:
+				globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict = globalMatcher(medId, pmid, authorKey, titleMin, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict, journalKey)
+	
+		# Printout the file
+		keyList = medlineDict.keys()
+		matchCount = 0
+		matchGroup = {}
+		for medId in sorted (keyList):
+			
+			pmidHere = medlineDict[medId]['pmid']
+			authorKeyHere = medlineDict[medId]['authorKey']
+			titleMinHere = medlineDict[medId]['titleMin']
+			match, basisOut, matchGroupOut, matchCount, matchGroup = matchFinder(pmidHere, authorKeyHere, titleMinHere, pmidDict, authorKeyDict, titleMinDict, matchCount, medId, matchGroup)
+	
+			# Print out clean version
+			pubOut.write(f'{medId}\t{pmidHere}\t{medlineDict[medId]["authorNames"]}\t{medlineDict[medId]["year"]}\t')
+			pubOut.write(f'{authorKeyHere}\t{medlineDict[medId]["title"]}\t{titleMinHere}\t')
+			pubOut.write(f'{medlineDict[medId]["journal"]}\t{medlineDict[medId]["journalKey"]}\t')
+			pubOut.write(f'{match}\t{basisOut}\t{matchGroupOut}\t{medlineDict[medId]["row"]}\n')
+	
+	# Process embase file
+	embaseDict = {}
+	if args.embase:
+	
+		print ('\n############################################################################')
+		print (' Processing an Embase file')
+		print ('############################################################################\n')
+	
+		cleanFileName = fileNamer(args.embase)
+		embOut = open(cleanFileName, 'w')
+	
+		# Process the file
+		pmidDict = {}
+		authorKeyDict = {}
+		titleMinDict = {}
+		journalKeyDict = {}
+		with open(args.embase, encoding="utf8") as csvfile:
+	
+			embaseCsv = csv.DictReader(csvfile, delimiter=',', quotechar='"',)
+			embaseHeaders = list(embaseCsv.fieldnames)
+			embaseColCount = len(embaseHeaders)
+			embaseHeadersOut = '\t'.join(embaseHeaders)
+			embOut.write(f'Embase_ID\tPMID\tEMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle\tTitle_Key\t')
+			embOut.write(f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tSimilar_group\t{embaseHeadersOut}\n')
+	
+			lineCount = 0
+			for row in embaseCsv:
+				lineCount += 1
+				embId = 'EMB_'+'{:05d}'.format(lineCount)
+				pmid, emid, authorNames, authorKey, title, titleMin, year, journal, journalKey, fullRow = embaseExtract(row)
+	
+				# Store the info
+				embaseDict[embId] = {}
+				embaseDict[embId]['row'] = fullRow
+				embaseDict[embId]['pmid'] = pmid
+				embaseDict[embId]['emid'] = emid
+				embaseDict[embId]['authorNames'] = authorNames
+				embaseDict[embId]['authorKey'] = authorKey
+				embaseDict[embId]['title'] = title
+				embaseDict[embId]['titleMin'] = titleMin
+				embaseDict[embId]['year'] = year
+				embaseDict[embId]['journal'] = journal
+				embaseDict[embId]['journalKey'] = journalKey
+	
+				# Record pmid matches
+				if pmid in pmidDict:
+					pmidDict[pmid] = f'{pmidDict[pmid]};{embId}'
+				else:
+					pmidDict[pmid] = embId
+	
+				# Record authorKey matches
+				if authorKey in authorKeyDict:
+					authorKeyDict[authorKey] = f'{authorKeyDict[authorKey]};{embId}'
+				else:
+					authorKeyDict[authorKey] = embId
+	
+				# Record titleMin matches
+				if titleMin in titleMinDict:
+					titleMinDict[titleMin] = f'{titleMinDict[titleMin]};{embId}'
+				else:
+					titleMinDict[titleMin] = embId
+	
+				# Record journalKey matches
+				if journalKey in journalKeyDict:
+					journalKeyDict[journalKey] = f'{journalKeyDict[journalKey]};{embId}'
+				else:
+					journalKeyDict[journalKey] = embId
+	
+				# Record global matches
+				globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict = globalMatcher(embId, pmid, authorKey, titleMin, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict, journalKey)
+	
+		# Printout the file
+		keyList = embaseDict.keys()
+		matchCount = 0
+		matchGroup = {}
+		for embId in sorted (keyList):
+	
+			pmidHere = embaseDict[embId]['pmid']
+			authorKeyHere = embaseDict[embId]['authorKey']
+			titleMinHere = embaseDict[embId]['titleMin']
+			match, basisOut, matchGroupOut, matchCount, matchGroup = matchFinder(pmidHere, authorKeyHere, titleMinHere, pmidDict, authorKeyDict, titleMinDict, matchCount, embId, matchGroup)
+			emidHere = embaseDict[embId]['emid']
+	
+			# Print out clean version
+			embOut.write(f'{embId}\t{pmidHere}\t{emidHere}\t{embaseDict[embId]["authorNames"]}\t{embaseDict[embId]["year"]}\t')
+			embOut.write(f'{authorKeyHere}\t{embaseDict[embId]["title"]}\t{titleMinHere}\t')
+			embOut.write(f'{embaseDict[embId]["journal"]}\t{embaseDict[embId]["journalKey"]}\t')
+			embOut.write(f'{match}\t{basisOut}\t{matchGroupOut}\t{embaseDict[embId]["row"]}\n')
+	
+	# Process scopus file
+	scopusDict = {}
+	if args.scopus:
+	
+		print ('\n############################################################################')
+		print (' Processing a Scopus file')
+		print ('############################################################################\n')
+	
+		cleanFileName = fileNamer(args.scopus)
+		scoOut = open(cleanFileName, 'w')
+	
+		# Process the file
+		pmidDict = {}
+		authorKeyDict = {}
+		titleMinDict = {}
+		journalKeyDict = {}
+		with open(args.scopus, encoding="utf8") as csvfile:
+	
+			scopusCsv = csv.DictReader(csvfile, delimiter=',', quotechar='"',)
+			scopusHeaders = list(scopusCsv.fieldnames)
+			scopusColCount = len(scopusHeaders)
+			scopusHeadersOut = '\t'.join(scopusHeaders)
+			scoOut.write(f'Embase_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle\tTitle_Key\t')
+			scoOut.write(f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tSimilar_group\t{scopusHeadersOut}\n')
+	
+			lineCount = 0
+			for row in scopusCsv:
+				lineCount += 1
+				scoId = 'SCO_'+'{:05d}'.format(lineCount)
+				pmid, authorNames, authorKey, title, titleMin, year, journal, journalKey, fullRow = scopusExtract(row)
+	
+				# Store the info
+				scopusDict[scoId] = {}
+				scopusDict[scoId]['row'] = fullRow
+				scopusDict[scoId]['pmid'] = pmid
+				scopusDict[scoId]['authorNames'] = authorNames
+				scopusDict[scoId]['authorKey'] = authorKey
+				scopusDict[scoId]['title'] = title
+				scopusDict[scoId]['titleMin'] = titleMin
+				scopusDict[scoId]['year'] = year
+				scopusDict[scoId]['journal'] = journal
+				scopusDict[scoId]['journalKey'] = journalKey
+	
+				# Record pmid matches
+				if pmid in pmidDict:
+					pmidDict[pmid] = f'{pmidDict[pmid]};{scoId}'
+				else:
+					pmidDict[pmid] = scoId
+	
+				# Record authorKey matches
+				if authorKey in authorKeyDict:
+					authorKeyDict[authorKey] = f'{authorKeyDict[authorKey]};{scoId}'
+				else:
+					authorKeyDict[authorKey] = scoId
+	
+				# Record titleMin matches
+				if titleMin in titleMinDict:
+					titleMinDict[titleMin] = f'{titleMinDict[titleMin]};{scoId}'
+				else:
+					titleMinDict[titleMin] = scoId
+	
+				# Record journalKey matches
+				if journalKey in journalKeyDict:
+					journalKeyDict[journalKey] = f'{journalKeyDict[journalKey]};{scoId}'
+				else:
+					journalKeyDict[journalKey] = scoId
+	
+				# Record global matches
+				globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict = globalMatcher(scoId, pmid, authorKey, titleMin, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict, journalKey)
+	
+		# Printout the file
+		keyList = scopusDict.keys()
+		matchCount = 0
+		matchGroup = {}
+		for scoId in sorted (keyList):
+	
+			pmidHere = scopusDict[scoId]['pmid']
+			authorKeyHere = scopusDict[scoId]['authorKey']
+			titleMinHere = scopusDict[scoId]['titleMin']
+			match, basisOut, matchGroupOut, matchCount, matchGroup = matchFinder(pmidHere, authorKeyHere, titleMinHere, pmidDict, authorKeyDict, titleMinDict, matchCount, scoId, matchGroup)
+			
+			# Print out clean version
+			scoOut.write(f'{scoId}\t{pmidHere}\t{scopusDict[scoId]["authorNames"]}\t{scopusDict[scoId]["year"]}\t')
+			scoOut.write(f'{authorKeyHere}\t{scopusDict[scoId]["title"]}\t{titleMinHere}\t')
+			scoOut.write(f'{scopusDict[scoId]["journal"]}\t{scopusDict[scoId]["journalKey"]}\t')
+			scoOut.write(f'{match}\t{basisOut}\t{matchGroupOut}\t{scopusDict[scoId]["row"]}\n')
+	
+	# Process embase file
+	firstDict = {}
+	if args.first:
+	
+		print ('\n############################################################################')
+		print (' Processing the Initial search file')
+		print ('############################################################################\n')
+	
+		# Load the skip list
+		skipListName = '/Users/stephansanders/Dropbox/Papers_author/Mara_Biomarkers/biomarkersdraft2/SS_version/first_skip_list.txt'
+		skipList = open(skipListName, 'r')
+		skipper = {}
+		for entry in skipList:
+			skipper[entry.strip()] = 5
+	
+		cleanFileName = fileNamer(args.first)
+		firOut = open(cleanFileName, 'w')
+	
+		# Process the file
+		pmidDict = {}
+		authorKeyDict = {}
+		titleMinDict = {}
+		journalKeyDict = {}
+		with open(args.first, encoding="utf8") as csvfile:
+	
+			firstCsv = csv.DictReader(csvfile, delimiter=',', quotechar='"',)
+			firstHeaders = list(firstCsv.fieldnames)
+			firstColCount = len(firstHeaders)
+			firstHeadersOut = '\t'.join(firstHeaders)
+			firOut.write(f'Embase_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle\tTitle_Key\t')
+			firOut.write(f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tSimilar_group\t{firstHeadersOut}\n')
+	
+			lineCount = 0
+			for row in firstCsv:
+				lineCount += 1
+				firId = 'ONE_'+'{:05d}'.format(lineCount)
+				if firId not in skipper:
+					pmid, authorNames, authorKey, title, titleMin, year, journal, journalKey, fullRow = firstExtract(row, lineCount)
+	
+					# Store the info
+					firstDict[firId] = {}
+					firstDict[firId]['row'] = fullRow
+					firstDict[firId]['pmid'] = pmid
+					firstDict[firId]['authorNames'] = authorNames
+					firstDict[firId]['authorKey'] = authorKey
+					firstDict[firId]['title'] = title
+					firstDict[firId]['titleMin'] = titleMin
+					firstDict[firId]['year'] = year
+					firstDict[firId]['journal'] = journal
+					firstDict[firId]['journalKey'] = journalKey
+	
+					# Record pmid matches
+					if pmid in pmidDict:
+						pmidDict[pmid] = f'{pmidDict[pmid]};{firId}'
+					else:
+						pmidDict[pmid] = firId
+	
+					# Record authorKey matches
+					if authorKey in authorKeyDict:
+						authorKeyDict[authorKey] = f'{authorKeyDict[authorKey]};{firId}'
+					else:
+						authorKeyDict[authorKey] = firId
+	
+					# Record titleMin matches
+					if titleMin in titleMinDict:
+						titleMinDict[titleMin] = f'{titleMinDict[titleMin]};{firId}'
+					elif titleMin != '.':
+						titleMinDict[titleMin] = firId
+	
+					# Record journalKey matches
+					if journalKey in journalKeyDict:
+						journalKeyDict[journalKey] = f'{journalKeyDict[journalKey]};{firId}'
+					else:
+						journalKeyDict[journalKey] = firId
+	
+					# Record global matches
+					globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict = globalMatcher(firId, pmid, authorKey, titleMin, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict, journalKey)
+	
+		# Printout the file
+		keyList = firstDict.keys()
+		matchCount = 0
+		matchGroup = {}
+		for firId in sorted (keyList):
+	
+			pmidHere = firstDict[firId]['pmid']
+			authorKeyHere = firstDict[firId]['authorKey']
+			titleMinHere = firstDict[firId]['titleMin']
+			match, basisOut, matchGroupOut, matchCount, matchGroup = matchFinder(pmidHere, authorKeyHere, titleMinHere, pmidDict, authorKeyDict, titleMinDict, matchCount, firId, matchGroup)
+			
+			# Print out clean version
+			firOut.write(f'{firId}\t{pmidHere}\t{firstDict[firId]["authorNames"]}\t{firstDict[firId]["year"]}\t')
+			firOut.write(f'{authorKeyHere}\t{firstDict[firId]["title"]}\t{titleMinHere}\t')
+			firOut.write(f'{firstDict[firId]["journal"]}\t{firstDict[firId]["journalKey"]}\t')
+			firOut.write(f'{match}\t{basisOut}\t{matchGroupOut}\t{firstDict[firId]["row"]}\n')
+	
+	print ('\n############################################################################')
+	print (' Looking for overlaps')
+	print ('############################################################################\n')
+	
+	matchGroupNew = {}
+	matchCountHere = 0
+	idToGroup = {}
+	idToSubgroup = {}
+	subgroupToId = {}
+	subgroupToId['.'] = ''
+	idToDistance = {}
+	# Look for overlaps between all the files
+	if args.medline:
+		for medId in medlineDict:
+			# if medId == 'MED_01933':
+			# 	sys.exit('Found MED_01933')
+	
+			pmidHere = medlineDict[medId]['pmid']
+			authorKeyHere = medlineDict[medId]['authorKey']
+			titleMinHere = medlineDict[medId]['titleMin']
+			journalKey = medlineDict[medId]['journalKey']
+			
+			if medId not in idToSubgroup:
+				matchKeyDict = {}
+				basisDict = {}
+				matchKeyDict, matchKeyDictLenLast, basisDict = matchListMaker(pmidHere, authorKeyHere, titleMinHere, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, medId, matchKeyDict, basisDict)
+				matchKeyDictLenNew = end = 0
+				matchKeyList = '|'.join(matchKeyDict.keys())
+	
+				# Extend to all possible matches
+				while end == 0:
+					for extraId in matchKeyList.split('|'):
+						# printv(extraId)
+						pmidExtraId, authorKeyExtraId, titleMinExtraId = getDetails(extraId, medlineDict, embaseDict, scopusDict, firstDict)
+						if extraId != medId:
+							matchKeyDict, matchKeyDictLenNew, basisDict = matchListMaker(pmidExtraId, authorKeyExtraId, titleMinExtraId, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, extraId, matchKeyDict, basisDict)
+					if matchKeyDictLenLast == matchKeyDictLenNew:
+						end = 1
+					else:
+						matchKeyDictLenLast = matchKeyDictLenNew
+						matchKeyList = '|'.join(matchKeyDict.keys())
+				
+				# Work out groups
+				match, basisOut, matchGroupOut, globalmatchCount, matchGroupNew = findGroups(medId, matchKeyDict, basisDict, globalmatchCount, matchGroupNew)
+				
+				# Work out subgroups
+				matchDist = '.'
+				if match != '.':
+					idToGroup, idToSubgroup, subgroupToId, idToDistance = subGroupV2(matchKeyDict, medlineDict, embaseDict, scopusDict, firstDict, matchGroupOut, idToGroup, idToSubgroup, subgroupToId, idToDistance)
+				else:
+					idToSubgroup[medId] = '.'
+					idToGroup[medId] = '.'
+	
+			# Assess subgroup status
+			matchSubGroupOut = idToSubgroup[medId]
+			matchSub = '.'
+			for idName in subgroupToId[matchSubGroupOut].split(';'):
+				if idName != medId and idName != '':
+					if matchSub == '.':
+						matchSub = f'{idName}({idToDistance[medId][idName]})'
+					else:
+						matchSub = f'{matchSub};{idName}({idToDistance[medId][idName]})'
+	
+			# Assess group status
+			match = '.'
+			for idName in idToGroup[medId].split(';'):
+				if idName != medId and idName != '.':
+					if match == '.':
+						match = f'{idName}({idToDistance[medId][idName]})'
+					else:
+						match = f'{match};{idName}({idToDistance[medId][idName]})'
+	
+			# Assess contributors
+			medStat = matchSub.count('MED') + 1
+			embStat = matchSub.count('EMB')
+			scoStat = matchSub.count('SCO')
+			firStat = matchSub.count('ONE')
+			papersInGroup = medStat+embStat+scoStat+firStat
+	
+			mainRecord = 'Y'
+	
+			# Print out clean version
+			allOut.write(f'{medId}\t{pmidHere}\t{medlineDict[medId]["authorNames"]}\t{medlineDict[medId]["year"]}\t')
+			allOut.write(f'{authorKeyHere}\t{medlineDict[medId]["title"]}\t{titleMinHere}\t{medlineDict[medId]["journal"]}\t{journalKey}\t')
+			allOut.write(f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}\t{medStat}\t{embStat}\t{scoStat}\t{firStat}\t{mainRecord}\n')
+	
+	if args.embase:
+		for embId in embaseDict:
+			pmidHere = embaseDict[embId]['pmid']
+			authorKeyHere = embaseDict[embId]['authorKey']
+			titleMinHere = embaseDict[embId]['titleMin']
+			journalKey = embaseDict[embId]['journalKey']
+			
 			matchKeyDict = {}
 			basisDict = {}
-			matchKeyDict, matchKeyDictLenLast, basisDict = matchListMaker(pmidHere, authorKeyHere, titleMinHere, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, medId, matchKeyDict, basisDict)
+			matchKeyDict, matchKeyDictLenLast, basisDict = matchListMaker(pmidHere, authorKeyHere, titleMinHere, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, embId, matchKeyDict, basisDict)
 			matchKeyDictLenNew = end = 0
 			matchKeyList = '|'.join(matchKeyDict.keys())
-
+	
 			# Extend to all possible matches
 			while end == 0:
 				for extraId in matchKeyList.split('|'):
-					# printv(extraId)
 					pmidExtraId, authorKeyExtraId, titleMinExtraId = getDetails(extraId, medlineDict, embaseDict, scopusDict, firstDict)
-					if extraId != medId:
+					if extraId != embId:
 						matchKeyDict, matchKeyDictLenNew, basisDict = matchListMaker(pmidExtraId, authorKeyExtraId, titleMinExtraId, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, extraId, matchKeyDict, basisDict)
 				if matchKeyDictLenLast == matchKeyDictLenNew:
 					end = 1
@@ -1245,262 +1318,195 @@ if args.medline:
 					matchKeyList = '|'.join(matchKeyDict.keys())
 			
 			# Work out groups
-			match, basisOut, matchGroupOut, globalmatchCount, matchGroupNew = findGroups(medId, matchKeyDict, basisDict, globalmatchCount, matchGroupNew)
-			
+			match, basisOut, matchGroupOut, globalmatchCount, matchGroupNew = findGroups(embId, matchKeyDict, basisDict, globalmatchCount, matchGroupNew)
+	
 			# Work out subgroups
 			matchDist = '.'
 			if match != '.':
 				idToGroup, idToSubgroup, subgroupToId, idToDistance = subGroupV2(matchKeyDict, medlineDict, embaseDict, scopusDict, firstDict, matchGroupOut, idToGroup, idToSubgroup, subgroupToId, idToDistance)
 			else:
-				idToSubgroup[medId] = '.'
-				idToGroup[medId] = '.'
-
-		# Assess subgroup status
-		matchSubGroupOut = idToSubgroup[medId]
-		matchSub = '.'
-		for idName in subgroupToId[matchSubGroupOut].split(';'):
-			if idName != medId and idName != '':
-				if matchSub == '.':
-					matchSub = f'{idName}({idToDistance[medId][idName]})'
+				idToSubgroup[embId] = '.'
+				idToGroup[embId] = '.'
+	
+			# Assess subgroup status
+			matchSubGroupOut = idToSubgroup[embId]
+			matchSub = '.'
+			for idName in subgroupToId[matchSubGroupOut].split(';'):
+				if idName != embId and idName != '':
+					if matchSub == '.':
+						matchSub = f'{idName}({idToDistance[embId][idName]})'
+					else:
+						matchSub = f'{matchSub};{idName}({idToDistance[embId][idName]})'
+	
+			# Assess group status
+			match = '.'
+			for idName in idToGroup[embId].split(';'):
+				if idName != embId and idName != '.':
+					if match == '.':
+						match = f'{idName}({idToDistance[embId][idName]})'
+					else:
+						match = f'{match};{idName}({idToDistance[embId][idName]})'
+	
+			# Assess contributors
+			medStat = matchSub.count('MED')
+			embStat = matchSub.count('EMB') + 1
+			scoStat = matchSub.count('SCO')
+			firStat = matchSub.count('ONE')
+			papersInGroup = medStat+embStat+scoStat+firStat
+	
+			mainRecord = 'N'
+			if 'MED' not in matchSub:
+				mainRecord = 'Y'
+	
+			# Print out clean version
+			allOut.write(f'{embId}\t{pmidHere}\t{embaseDict[embId]["authorNames"]}\t{embaseDict[embId]["year"]}\t')
+			allOut.write(f'{authorKeyHere}\t{embaseDict[embId]["title"]}\t{titleMinHere}\t{embaseDict[embId]["journal"]}\t{journalKey}\t')
+			allOut.write(f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}\t{medStat}\t{embStat}\t{scoStat}\t{firStat}\t{mainRecord}\n')
+	
+	if args.scopus:
+		for scoId in scopusDict:
+			pmidHere = scopusDict[scoId]['pmid']
+			authorKeyHere = scopusDict[scoId]['authorKey']
+			titleMinHere = scopusDict[scoId]['titleMin']
+			journalKey = scopusDict[scoId]['journalKey']
+			
+			# Find matches
+			matchKeyDict = {}
+			basisDict = {}
+			matchKeyDict, matchKeyDictLenLast, basisDict = matchListMaker(pmidHere, authorKeyHere, titleMinHere, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, scoId, matchKeyDict, basisDict)
+			matchKeyDictLenNew = end = 0
+			matchKeyList = '|'.join(matchKeyDict.keys())
+	
+			# Extend to all possible matches
+			while end == 0:
+				for extraId in matchKeyList.split('|'):
+					pmidExtraId, authorKeyExtraId, titleMinExtraId = getDetails(extraId, medlineDict, embaseDict, scopusDict, firstDict)
+					if extraId != scoId:
+						matchKeyDict, matchKeyDictLenNew, basisDict = matchListMaker(pmidExtraId, authorKeyExtraId, titleMinExtraId, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, extraId, matchKeyDict, basisDict)
+				if matchKeyDictLenLast == matchKeyDictLenNew:
+					end = 1
 				else:
-					matchSub = f'{matchSub};{idName}({idToDistance[medId][idName]})'
-
-		# Assess group status
-		match = '.'
-		for idName in idToGroup[medId].split(';'):
-			if idName != medId and idName != '.':
-				if match == '.':
-					match = f'{idName}({idToDistance[medId][idName]})'
-				else:
-					match = f'{match};{idName}({idToDistance[medId][idName]})'
-
-		# Assess contributors
-		medStat = matchSub.count('MED') + 1
-		embStat = matchSub.count('EMB')
-		scoStat = matchSub.count('SCO')
-		firStat = matchSub.count('ONE')
-		papersInGroup = medStat+embStat+scoStat+firStat
-
-		mainRecord = 'Y'
-
-		# Print out clean version
-		allOut.write(f'{medId}\t{pmidHere}\t{medlineDict[medId]["authorNames"]}\t{medlineDict[medId]["year"]}\t')
-		allOut.write(f'{authorKeyHere}\t{medlineDict[medId]["title"]}\t{titleMinHere}\t{medlineDict[medId]["journal"]}\t{journalKey}\t')
-		allOut.write(f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}\t{medStat}\t{embStat}\t{scoStat}\t{firStat}\t{mainRecord}\n')
-
-if args.embase:
-	for embId in embaseDict:
-		pmidHere = embaseDict[embId]['pmid']
-		authorKeyHere = embaseDict[embId]['authorKey']
-		titleMinHere = embaseDict[embId]['titleMin']
-		journalKey = embaseDict[embId]['journalKey']
-		
-		matchKeyDict = {}
-		basisDict = {}
-		matchKeyDict, matchKeyDictLenLast, basisDict = matchListMaker(pmidHere, authorKeyHere, titleMinHere, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, embId, matchKeyDict, basisDict)
-		matchKeyDictLenNew = end = 0
-		matchKeyList = '|'.join(matchKeyDict.keys())
-
-		# Extend to all possible matches
-		while end == 0:
-			for extraId in matchKeyList.split('|'):
-				pmidExtraId, authorKeyExtraId, titleMinExtraId = getDetails(extraId, medlineDict, embaseDict, scopusDict, firstDict)
-				if extraId != embId:
-					matchKeyDict, matchKeyDictLenNew, basisDict = matchListMaker(pmidExtraId, authorKeyExtraId, titleMinExtraId, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, extraId, matchKeyDict, basisDict)
-			if matchKeyDictLenLast == matchKeyDictLenNew:
-				end = 1
+					matchKeyDictLenLast = matchKeyDictLenNew
+					matchKeyList = '|'.join(matchKeyDict.keys())
+			
+			# Work out groups
+			match, basisOut, matchGroupOut, globalmatchCount, matchGroupNew = findGroups(scoId, matchKeyDict, basisDict, globalmatchCount, matchGroupNew)
+	
+			# Work out subgroups
+			matchDist = '.'
+			if match != '.':
+				idToGroup, idToSubgroup, subgroupToId, idToDistance = subGroupV2(matchKeyDict, medlineDict, embaseDict, scopusDict, firstDict, matchGroupOut, idToGroup, idToSubgroup, subgroupToId, idToDistance)
 			else:
-				matchKeyDictLenLast = matchKeyDictLenNew
-				matchKeyList = '|'.join(matchKeyDict.keys())
-		
-		# Work out groups
-		match, basisOut, matchGroupOut, globalmatchCount, matchGroupNew = findGroups(embId, matchKeyDict, basisDict, globalmatchCount, matchGroupNew)
-
-		# Work out subgroups
-		matchDist = '.'
-		if match != '.':
-			idToGroup, idToSubgroup, subgroupToId, idToDistance = subGroupV2(matchKeyDict, medlineDict, embaseDict, scopusDict, firstDict, matchGroupOut, idToGroup, idToSubgroup, subgroupToId, idToDistance)
-		else:
-			idToSubgroup[embId] = '.'
-			idToGroup[embId] = '.'
-
-		# Assess subgroup status
-		matchSubGroupOut = idToSubgroup[embId]
-		matchSub = '.'
-		for idName in subgroupToId[matchSubGroupOut].split(';'):
-			if idName != embId and idName != '':
-				if matchSub == '.':
-					matchSub = f'{idName}({idToDistance[embId][idName]})'
+				idToSubgroup[scoId] = '.'
+				idToGroup[scoId] = '.'
+	
+			# Assess subgroup status
+			matchSubGroupOut = idToSubgroup[scoId]
+			matchSub = '.'
+			for idName in subgroupToId[matchSubGroupOut].split(';'):
+				if idName != scoId and idName != '':
+					if matchSub == '.':
+						matchSub = f'{idName}({idToDistance[scoId][idName]})'
+					else:
+						matchSub = f'{matchSub};{idName}({idToDistance[scoId][idName]})'
+	
+			# Assess group status
+			match = '.'
+			for idName in idToGroup[scoId].split(';'):
+				if idName != scoId and idName != '.':
+					if match == '.':
+						match = f'{idName}({idToDistance[scoId][idName]})'
+					else:
+						match = f'{match};{idName}({idToDistance[scoId][idName]})'
+	
+			# Assess contributors
+			medStat = matchSub.count('MED')
+			embStat = matchSub.count('EMB')
+			scoStat = matchSub.count('SCO') + 1
+			firStat = matchSub.count('ONE')
+			papersInGroup = medStat+embStat+scoStat+firStat
+	
+			mainRecord = 'N'
+			if 'MED' not in matchSub and 'EMB' not in matchSub:
+				mainRecord = 'Y'
+	
+			# Print out clean version
+			allOut.write(f'{scoId}\t{pmidHere}\t{scopusDict[scoId]["authorNames"]}\t{scopusDict[scoId]["year"]}\t')
+			allOut.write(f'{authorKeyHere}\t{scopusDict[scoId]["title"]}\t{titleMinHere}\t{scopusDict[scoId]["journal"]}\t{journalKey}\t')
+			allOut.write(f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}\t{medStat}\t{embStat}\t{scoStat}\t{firStat}\t{mainRecord}\n')
+	
+	if args.first:
+		for firId in firstDict:
+			pmidHere = firstDict[firId]['pmid']
+			authorKeyHere = firstDict[firId]['authorKey']
+			titleMinHere = firstDict[firId]['titleMin']
+			journalKey = firstDict[firId]['journalKey']
+			
+			# Find matches
+			matchKeyDict = {}
+			basisDict = {}
+			matchKeyDict, matchKeyDictLenLast, basisDict = matchListMaker(pmidHere, authorKeyHere, titleMinHere, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, firId, matchKeyDict, basisDict)
+			matchKeyDictLenNew = end = 0
+			matchKeyList = '|'.join(matchKeyDict.keys())
+	
+			# Extend to all possible matches
+			while end == 0:
+				for extraId in matchKeyList.split('|'):
+					pmidExtraId, authorKeyExtraId, titleMinExtraId = getDetails(extraId, medlineDict, embaseDict, scopusDict, firstDict)
+					if extraId != firId:
+						matchKeyDict, matchKeyDictLenNew, basisDict = matchListMaker(pmidExtraId, authorKeyExtraId, titleMinExtraId, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, extraId, matchKeyDict, basisDict)
+				if matchKeyDictLenLast == matchKeyDictLenNew:
+					end = 1
 				else:
-					matchSub = f'{matchSub};{idName}({idToDistance[embId][idName]})'
-
-		# Assess group status
-		match = '.'
-		for idName in idToGroup[embId].split(';'):
-			if idName != embId and idName != '.':
-				if match == '.':
-					match = f'{idName}({idToDistance[embId][idName]})'
-				else:
-					match = f'{match};{idName}({idToDistance[embId][idName]})'
-
-		# Assess contributors
-		medStat = matchSub.count('MED')
-		embStat = matchSub.count('EMB') + 1
-		scoStat = matchSub.count('SCO')
-		firStat = matchSub.count('ONE')
-		papersInGroup = medStat+embStat+scoStat+firStat
-
-		mainRecord = 'N'
-		if 'MED' not in matchSub:
-			mainRecord = 'Y'
-
-		# Print out clean version
-		allOut.write(f'{embId}\t{pmidHere}\t{embaseDict[embId]["authorNames"]}\t{embaseDict[embId]["year"]}\t')
-		allOut.write(f'{authorKeyHere}\t{embaseDict[embId]["title"]}\t{titleMinHere}\t{embaseDict[embId]["journal"]}\t{journalKey}\t')
-		allOut.write(f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}\t{medStat}\t{embStat}\t{scoStat}\t{firStat}\t{mainRecord}\n')
-
-if args.scopus:
-	for scoId in scopusDict:
-		pmidHere = scopusDict[scoId]['pmid']
-		authorKeyHere = scopusDict[scoId]['authorKey']
-		titleMinHere = scopusDict[scoId]['titleMin']
-		journalKey = scopusDict[scoId]['journalKey']
-		
-		# Find matches
-		matchKeyDict = {}
-		basisDict = {}
-		matchKeyDict, matchKeyDictLenLast, basisDict = matchListMaker(pmidHere, authorKeyHere, titleMinHere, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, scoId, matchKeyDict, basisDict)
-		matchKeyDictLenNew = end = 0
-		matchKeyList = '|'.join(matchKeyDict.keys())
-
-		# Extend to all possible matches
-		while end == 0:
-			for extraId in matchKeyList.split('|'):
-				pmidExtraId, authorKeyExtraId, titleMinExtraId = getDetails(extraId, medlineDict, embaseDict, scopusDict, firstDict)
-				if extraId != scoId:
-					matchKeyDict, matchKeyDictLenNew, basisDict = matchListMaker(pmidExtraId, authorKeyExtraId, titleMinExtraId, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, extraId, matchKeyDict, basisDict)
-			if matchKeyDictLenLast == matchKeyDictLenNew:
-				end = 1
+					matchKeyDictLenLast = matchKeyDictLenNew
+					matchKeyList = '|'.join(matchKeyDict.keys())
+			
+			# Work out groups
+			match, basisOut, matchGroupOut, globalmatchCount, matchGroupNew = findGroups(firId, matchKeyDict, basisDict, globalmatchCount, matchGroupNew)
+	
+			# Work out subgroups
+			matchDist = '.'
+			if match != '.':
+				idToGroup, idToSubgroup, subgroupToId, idToDistance = subGroupV2(matchKeyDict, medlineDict, embaseDict, scopusDict, firstDict, matchGroupOut, idToGroup, idToSubgroup, subgroupToId, idToDistance)
 			else:
-				matchKeyDictLenLast = matchKeyDictLenNew
-				matchKeyList = '|'.join(matchKeyDict.keys())
-		
-		# Work out groups
-		match, basisOut, matchGroupOut, globalmatchCount, matchGroupNew = findGroups(scoId, matchKeyDict, basisDict, globalmatchCount, matchGroupNew)
-
-		# Work out subgroups
-		matchDist = '.'
-		if match != '.':
-			idToGroup, idToSubgroup, subgroupToId, idToDistance = subGroupV2(matchKeyDict, medlineDict, embaseDict, scopusDict, firstDict, matchGroupOut, idToGroup, idToSubgroup, subgroupToId, idToDistance)
-		else:
-			idToSubgroup[scoId] = '.'
-			idToGroup[scoId] = '.'
-
-		# Assess subgroup status
-		matchSubGroupOut = idToSubgroup[scoId]
-		matchSub = '.'
-		for idName in subgroupToId[matchSubGroupOut].split(';'):
-			if idName != scoId and idName != '':
-				if matchSub == '.':
-					matchSub = f'{idName}({idToDistance[scoId][idName]})'
-				else:
-					matchSub = f'{matchSub};{idName}({idToDistance[scoId][idName]})'
-
-		# Assess group status
-		match = '.'
-		for idName in idToGroup[scoId].split(';'):
-			if idName != scoId and idName != '.':
-				if match == '.':
-					match = f'{idName}({idToDistance[scoId][idName]})'
-				else:
-					match = f'{match};{idName}({idToDistance[scoId][idName]})'
-
-		# Assess contributors
-		medStat = matchSub.count('MED')
-		embStat = matchSub.count('EMB')
-		scoStat = matchSub.count('SCO') + 1
-		firStat = matchSub.count('ONE')
-		papersInGroup = medStat+embStat+scoStat+firStat
-
-		mainRecord = 'N'
-		if 'MED' not in matchSub and 'EMB' not in matchSub:
-			mainRecord = 'Y'
-
-		# Print out clean version
-		allOut.write(f'{scoId}\t{pmidHere}\t{scopusDict[scoId]["authorNames"]}\t{scopusDict[scoId]["year"]}\t')
-		allOut.write(f'{authorKeyHere}\t{scopusDict[scoId]["title"]}\t{titleMinHere}\t{scopusDict[scoId]["journal"]}\t{journalKey}\t')
-		allOut.write(f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}\t{medStat}\t{embStat}\t{scoStat}\t{firStat}\t{mainRecord}\n')
-
-if args.first:
-	for firId in firstDict:
-		pmidHere = firstDict[firId]['pmid']
-		authorKeyHere = firstDict[firId]['authorKey']
-		titleMinHere = firstDict[firId]['titleMin']
-		journalKey = firstDict[firId]['journalKey']
-		
-		# Find matches
-		matchKeyDict = {}
-		basisDict = {}
-		matchKeyDict, matchKeyDictLenLast, basisDict = matchListMaker(pmidHere, authorKeyHere, titleMinHere, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, firId, matchKeyDict, basisDict)
-		matchKeyDictLenNew = end = 0
-		matchKeyList = '|'.join(matchKeyDict.keys())
-
-		# Extend to all possible matches
-		while end == 0:
-			for extraId in matchKeyList.split('|'):
-				pmidExtraId, authorKeyExtraId, titleMinExtraId = getDetails(extraId, medlineDict, embaseDict, scopusDict, firstDict)
-				if extraId != firId:
-					matchKeyDict, matchKeyDictLenNew, basisDict = matchListMaker(pmidExtraId, authorKeyExtraId, titleMinExtraId, globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, extraId, matchKeyDict, basisDict)
-			if matchKeyDictLenLast == matchKeyDictLenNew:
-				end = 1
-			else:
-				matchKeyDictLenLast = matchKeyDictLenNew
-				matchKeyList = '|'.join(matchKeyDict.keys())
-		
-		# Work out groups
-		match, basisOut, matchGroupOut, globalmatchCount, matchGroupNew = findGroups(firId, matchKeyDict, basisDict, globalmatchCount, matchGroupNew)
-
-		# Work out subgroups
-		matchDist = '.'
-		if match != '.':
-			idToGroup, idToSubgroup, subgroupToId, idToDistance = subGroupV2(matchKeyDict, medlineDict, embaseDict, scopusDict, firstDict, matchGroupOut, idToGroup, idToSubgroup, subgroupToId, idToDistance)
-		else:
-			idToSubgroup[firId] = '.'
-			idToGroup[firId] = '.'
-
-		# Assess subgroup status
-		matchSubGroupOut = idToSubgroup[firId]
-		matchSub = '.'
-		for idName in subgroupToId[matchSubGroupOut].split(';'):
-			if idName != firId and idName != '':
-				if matchSub == '.':
-					matchSub = f'{idName}({idToDistance[firId][idName]})'
-				else:
-					matchSub = f'{matchSub};{idName}({idToDistance[firId][idName]})'
-
-		# Assess group status
-		match = '.'
-		for idName in idToGroup[firId].split(';'):
-			if idName != firId and idName != '.':
-				if match == '.':
-					match = f'{idName}({idToDistance[firId][idName]})'
-				else:
-					match = f'{match};{idName}({idToDistance[firId][idName]})'
-
-		# Assess contributors
-		medStat = matchSub.count('MED')
-		embStat = matchSub.count('EMB')
-		scoStat = matchSub.count('SCO')
-		firStat = matchSub.count('ONE') + 1
-		papersInGroup = medStat+embStat+scoStat+firStat
-
-		mainRecord = 'N'
-		if 'MED' not in matchSub and 'EMB' not in matchSub and 'SCO' not in matchSub:
-			mainRecord = 'Y'
-
-		# Print out clean version
-		allOut.write(f'{firId}\t{pmidHere}\t{firstDict[firId]["authorNames"]}\t{firstDict[firId]["year"]}\t')
-		allOut.write(f'{authorKeyHere}\t{firstDict[firId]["title"]}\t{titleMinHere}\t{firstDict[firId]["journal"]}\t{journalKey}\t')
-		allOut.write(f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}\t{medStat}\t{embStat}\t{scoStat}\t{firStat}\t{mainRecord}\n')
+				idToSubgroup[firId] = '.'
+				idToGroup[firId] = '.'
+	
+			# Assess subgroup status
+			matchSubGroupOut = idToSubgroup[firId]
+			matchSub = '.'
+			for idName in subgroupToId[matchSubGroupOut].split(';'):
+				if idName != firId and idName != '':
+					if matchSub == '.':
+						matchSub = f'{idName}({idToDistance[firId][idName]})'
+					else:
+						matchSub = f'{matchSub};{idName}({idToDistance[firId][idName]})'
+	
+			# Assess group status
+			match = '.'
+			for idName in idToGroup[firId].split(';'):
+				if idName != firId and idName != '.':
+					if match == '.':
+						match = f'{idName}({idToDistance[firId][idName]})'
+					else:
+						match = f'{match};{idName}({idToDistance[firId][idName]})'
+	
+			# Assess contributors
+			medStat = matchSub.count('MED')
+			embStat = matchSub.count('EMB')
+			scoStat = matchSub.count('SCO')
+			firStat = matchSub.count('ONE') + 1
+			papersInGroup = medStat+embStat+scoStat+firStat
+	
+			mainRecord = 'N'
+			if 'MED' not in matchSub and 'EMB' not in matchSub and 'SCO' not in matchSub:
+				mainRecord = 'Y'
+	
+			# Print out clean version
+			allOut.write(f'{firId}\t{pmidHere}\t{firstDict[firId]["authorNames"]}\t{firstDict[firId]["year"]}\t')
+			allOut.write(f'{authorKeyHere}\t{firstDict[firId]["title"]}\t{titleMinHere}\t{firstDict[firId]["journal"]}\t{journalKey}\t')
+			allOut.write(f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}\t{medStat}\t{embStat}\t{scoStat}\t{firStat}\t{mainRecord}\n')
 
 
+if __name__ == "__main__":
+	main()
