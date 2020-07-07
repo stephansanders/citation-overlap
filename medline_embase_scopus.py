@@ -131,6 +131,30 @@ def _parseAuthorNames(row, key, year):
 	return authorNames, authorKey
 
 
+def _parseID(row, key, search, warn=True, default='NoPMID'):
+	"""Get the ID.
+
+	Args:
+		row (dict[str, str]): Dictionary from a row.
+		key (str): Author names key in ``row``.
+		search (str): Regex search pattern.
+		warn (bool): True to warn if ID is not found; defaults to True.
+		default (str): Default ID if ID is not found.
+
+	Returns:
+		str: ID.
+
+	"""
+	pmidField = row.get(key)
+	if pmidField is not None:
+		pmidMatch = re.search(search, pmidField)
+		if pmidMatch:
+			return pmidMatch.group(1)
+	if warn:
+		print('ERR: No ID found:' + pmidField)
+	return default
+
+
 def medlineExtract(row):
 	"""Extract key info from Medline.
 
@@ -144,15 +168,7 @@ def medlineExtract(row):
 	"""
 	year = _parseYear(row, {'ShortDetails': (r'.\s+(\d{4})$', r'(\d{4})$')})
 	authorNames, authorKey = _parseAuthorNames(row, 'Description', year)
-
-	# Get the PMID
-	pmid = 'NoPMID'
-	pmidField = row['Identifiers']
-	pmidMatch = re.search('PMID:(\d+)', pmidField)
-	if pmidMatch:
-		pmid = pmidMatch.group(1)
-	else:
-		print('ERR: No PMID:' + pmidField)
+	pmid = _parseID(row, 'Identifiers', r'PMID:(\d+)')
 
 	# Get the shortest unique title
 	title = 'noTitle'
@@ -198,21 +214,9 @@ def embaseExtract(row):
 		'Source': r'(19\d{2}|20\d{2})',
 	})
 	authorNames, authorKey = _parseAuthorNames(row, 'Author Names', year)
-
-	# Get the PMID
-	pmid = 'NoPMID'
-	pmidField = row['Medline PMID']
-	pmidMatch = re.search('(\d+)', pmidField)
-	if pmidMatch:
-		pmid = pmidMatch.group(1)
-
-	# Get the EmbaseID
-	emid = 'NoEMID'
-	emidField = row['Embase Accession ID']
-	#print (emidField)
-	emidMatch = re.search('(\d+)', emidField)
-	if emidMatch:
-		emid = emidMatch.group(1)
+	pmid = _parseID(row, 'Medline PMID', r'(\d+)', warn=False)
+	emid = _parseID(
+		row, 'Embase Accession ID', r'(\d+)', warn=False, default='NoEMID')
 
 	# Get the shortest unique title
 	title = 'noTitle'
@@ -258,13 +262,7 @@ def embaseExtract(row):
 def scopusExtract(row):
 	year = _parseYear(row, {'Year': r'(19\d{2}|20\d{2})'})
 	authorNames, authorKey = _parseAuthorNames(row, '\ufeffAuthors', year)
-
-	# Get the PMID
-	pmid = 'NoPMID'
-	pmidField = row['PubMed ID']
-	pmidMatch = re.search('(\d+)', pmidField)
-	if pmidMatch:
-		pmid = pmidMatch.group(1)
+	pmid = _parseID(row, 'PubMed ID', r'(\d+)', warn=False)
 
 	# Get the shortest unique title
 	title = 'noTitle'
@@ -1154,7 +1152,7 @@ def main():
 			pubOut.write(
 				f'{match}\t{basisOut}\t{matchGroupOut}'
 				f'\t{medlineDict[medId]["row"]}\n')
-	
+
 	# Process embase file
 	embaseDict = {}
 	if args.embase:
