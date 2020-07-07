@@ -155,6 +155,30 @@ def _parseID(row, key, search, warn=True, default='NoPMID'):
 	return default
 
 
+def _parseTitle(row, key):
+	"""Get titles
+
+	Args:
+		row (dict[str, str]): Dictionary from a row.
+		key (str): Author names key in ``row``.
+
+	Returns:
+		str, str: Title and shortest unique title.
+
+	"""
+	title = 'noTitle'
+	titleMin = '.'
+	titleName = row.get(key)
+	if titleName:
+		title = titleName
+		titleField = titleName.lower()
+		titleFieldClean = titleField.translate(str.maketrans(
+			'', '', string.punctuation))  # remove punctuation
+		titleList = titleFieldClean.split()
+		titleMin = '_'.join(titleList[:7])
+	return title, titleMin
+
+
 def medlineExtract(row):
 	"""Extract key info from Medline.
 
@@ -169,17 +193,7 @@ def medlineExtract(row):
 	year = _parseYear(row, {'ShortDetails': (r'.\s+(\d{4})$', r'(\d{4})$')})
 	authorNames, authorKey = _parseAuthorNames(row, 'Description', year)
 	pmid = _parseID(row, 'Identifiers', r'PMID:(\d+)')
-
-	# Get the shortest unique title
-	title = 'noTitle'
-	titleMin = '.'
-	if row['Title']:
-		title = row['Title']
-		titleField = row['Title'].lower()
-		titleFieldClean = titleField.translate(str.maketrans(
-			'', '', string.punctuation))  # remove punctuation
-		titleList = titleFieldClean.split()
-		titleMin = '_'.join(titleList[:7])
+	title, titleMin = _parseTitle(row, 'Title')
 
 	# Get the journal details
 	journal = row['Details']
@@ -217,17 +231,7 @@ def embaseExtract(row):
 	pmid = _parseID(row, 'Medline PMID', r'(\d+)', warn=False)
 	emid = _parseID(
 		row, 'Embase Accession ID', r'(\d+)', warn=False, default='NoEMID')
-
-	# Get the shortest unique title
-	title = 'noTitle'
-	titleMin = '.'
-	if row['\ufeff"Title"']:
-		title = row['\ufeff"Title"']
-		titleField = row['\ufeff"Title"'].lower()
-		titleFieldClean = titleField.translate(str.maketrans(
-			'', '', string.punctuation))  # remove punctuation
-		titleList = titleFieldClean.split()
-		titleMin = '_'.join(titleList[:7])
+	title, titleMin = _parseTitle(row, '\ufeff"Title"')
 
 	# Get the journal details
 	journal = row['Source']
@@ -263,17 +267,7 @@ def scopusExtract(row):
 	year = _parseYear(row, {'Year': r'(19\d{2}|20\d{2})'})
 	authorNames, authorKey = _parseAuthorNames(row, '\ufeffAuthors', year)
 	pmid = _parseID(row, 'PubMed ID', r'(\d+)', warn=False)
-
-	# Get the shortest unique title
-	title = 'noTitle'
-	titleMin = '.'
-	if row['Title']:
-		title = row['Title']
-		titleField = row['Title'].lower()
-		titleFieldClean = titleField.translate(str.maketrans(
-			'', '', string.punctuation))  # remove punctuation
-		titleList = titleFieldClean.split()
-		titleMin = '_'.join(titleList[:7])
+	title, titleMin = _parseTitle(row, 'Title')
 
 	# Get the journal details
 	journal = f'{row["Source title"]} {year};'
