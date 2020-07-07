@@ -36,8 +36,16 @@ import hdbscan # pip3 install hdbscan
 # Combine the lists in a text editor or Google Sheet, not in Excel
 
 
-# Remove periods and replace spaces with underscores
-def authorNameProcess (name):
+def authorNameProcess(name):
+	"""Remove periods and replace spaces with underscores in author names.
+
+	Args:
+		name (str): Name string.
+
+	Returns:
+		str: Formatted name.
+
+	"""
 	# remove punctuation
 	newName = name.translate(str.maketrans('', '', string.punctuation))
 	newName = newName.replace(' ', '_')
@@ -46,18 +54,34 @@ def authorNameProcess (name):
 	return newName
 
 
-# Quick way of printing variable name and variable, useful when debugging
 def printv(x):
+	"""Quick way of printing variable name and variable, useful when debugging.
+
+	Args:
+		x (Any): Variable to look up.
+
+	Returns:
+		str: Variable info.
+
+	"""
 	import inspect
 	frame = inspect.currentframe().f_back
 	s = inspect.getframeinfo(frame).code_context[0]
 	r = re.search(r"\((.*)\)", s).group(1)
-	print("{} = {}".format(r,x))
+	print("{} = {}".format(r, x))
 
 
-# Extract key info from Medline
 def medlineExtract(row):
+	"""Extract key info from Medline.
 
+	Args:
+		row (dict[str, str]): Dictionary from a row.
+
+	Returns:
+		PubMed ID, author names, author key, title, title min, year, journal,
+		journal key, full row.
+
+	"""
 	# Get the year
 	year = 'NoYear'
 	shortDet = row['ShortDetails']
@@ -328,9 +352,18 @@ def scopusExtract(row):
 		journal, journalKey, fullRow
 
 
-# Extract key info from Medline
 def firstExtract(row, lineCount):
+	"""Extract key info from Medline.
 
+	Args:
+		row (dict[str, str]): Dictionary from a row.
+		lineCount (int): Line count.
+
+	Returns:
+		PubMed ID, author names, author key, title, title min, year,
+		journal, journal key, full row.
+
+	"""
 	# Get the year
 	year = 'NoYear'
 	yearDet = row['YR']
@@ -414,8 +447,17 @@ def firstExtract(row, lineCount):
 	return pmid, authorNames, authorKey, title, titleMin, year, \
 		journal, journalKey, fullRow
 
-# Get the clean version output file name
+
 def fileNamer(inputFile):
+	"""Get the clean version output file name.
+
+	Args:
+		inputFile (str): Input filename.
+
+	Returns:
+		str: Formatted filename.
+
+	"""
 	inputFileBits = inputFile.split('.')
 	inputFileBits.pop() # remove extension
 	inputFileBase = '.'.join(inputFileBits)
@@ -423,11 +465,26 @@ def fileNamer(inputFile):
 	return cleaninputFileName
 
 
-# Get a list of possible matches
 def matchListMaker(
 		pmidHere, authorKeyHere, titleMinHere, pmidDict,
 		authorKeyDict, titleMinDict, theId, matchKeyDict, basisDict):
-	
+	"""Get a list of possible matches
+
+	Args:
+		pmidHere (str): PubMed ID.
+		authorKeyHere (str): Author key.
+		titleMinHere (str): Title min.
+		pmidDict (dict[str, str]): PubMed dictionary.
+		authorKeyDict (dict[str, str]): Author dictionary.
+		titleMinDict (dict[str, str]): Title min dictionary.
+		theId: ID.
+		matchKeyDict (dict[str, int]): Match dictionary.
+		basisDict (dict[str, int]): Basis dictionary.
+
+	Returns:
+		match dict, length of this dict, and basis dict.
+
+	"""
 	# Look for PMID matches
 	if pmidHere != 'NoPMID' and pmidHere != '.':
 		if ';' in pmidDict[pmidHere]:
@@ -455,8 +512,20 @@ def matchListMaker(
 	return matchKeyDict, len(matchKeyDict), basisDict
 
 
-# PMID, authorKey and TitleMin for a given ID
 def getDetails(extraId, medlineDict, embaseDict, scopusDict, firstDict):
+	"""Get PMID, authorKey and TitleMin for a given ID.
+
+	Args:
+		extraId (str): Extra ID.
+		medlineDict (dict[str, dict[str, str]]): Medline dict.
+		embaseDict (dict[str, dict[str, str]]): Embase dict.
+		scopusDict (dict[str, dict[str, str]]): SCOPUS dict.
+		firstDict (dict[str, dict[str, str]]): First dict.
+
+	Returns:
+		PMID, authorKey and TitleMin.
+
+	"""
 	pmidExtraId = authorKeyExtraId = titleMinExtraId = '.'
 	if extraId.startswith('MED'):
 		pmidExtraId = medlineDict[extraId]['pmid']
@@ -478,9 +547,20 @@ def getDetails(extraId, medlineDict, embaseDict, scopusDict, firstDict):
 	return pmidExtraId, authorKeyExtraId, titleMinExtraId
 
 
-# Find and label groups of matching papers 
 def findGroups(theId, matchKeyDict, basisDict, matchCountHere, matchGroup):
-	
+	"""Find and label groups of matching papers.
+
+	Args:
+		theId (str): ID.
+		matchKeyDict (dict[str, int]): Match dictionary.
+		basisDict (dict[str, int]): Basis dictionary.
+		matchCountHere (int): Match count.
+		matchGroup (dict[str, int]): Match group dict.
+
+	Returns:
+		match, basis out, match group out, match count, match group.
+
+	"""
 	match = basisOut = matchGroupOut = '.'
 	if len(matchKeyDict) > 1:
 		possibleMatch = []
@@ -504,10 +584,26 @@ def findGroups(theId, matchKeyDict, basisDict, matchCountHere, matchGroup):
 	return match, basisOut, matchGroupOut, matchCountHere, matchGroup
 
 
-# Find matches within a single source
 def matchFinder(
 		pmidHere, authorKeyHere, titleMinHere, pmidDict, authorKeyDict,
 		titleMinDict, matchCountHere, theId, matchGroup):
+	"""Find matches within a single source.
+
+	Args:
+		pmidHere (str): PubMed ID.
+		authorKeyHere (str): Author key.
+		titleMinHere (str): Title min.
+		pmidDict (dict[str, str]): PubMed dictionary.
+		authorKeyDict (dict[str, str]): Author dictionary.
+		titleMinDict (dict[str, str]): Title min dictionary.
+		matchCountHere (int): Match count.
+		theId: ID.
+		matchGroup (dict[str, int]): Match group dict.
+
+	Returns:
+		match, basis out, match group out, match count, and match group.
+
+	"""
 	possibleMatch = {}
 	basis = {}
 	matchKey = {}
@@ -563,12 +659,28 @@ def matchFinder(
 def subGroup(
 		thisId, idList, medlineDict, embaseDict, scopusDict, firstDict,
 		matchGroupOut, existingGroup, geneToSubgroup):
-	
+	"""
+
+	Args:
+		thisId (str): ID.
+		idList (List[str]): List of IDs.
+		medlineDict (dict[str, dict[str, str]]): Medline dict.
+		embaseDict (dict[str, dict[str, str]]): Embase dict.
+		scopusDict (dict[str, dict[str, str]]): SCOPUS dict.
+		firstDict (dict[str, dict[str, str]]): First dict.
+		matchGroupOut (str): Match group for output.
+		existingGroup (List[str]): Existing groups.
+		geneToSubgroup:
+
+	Returns:
+		ID dict.
+
+	"""
 	# Get a unique groupId
 	groupNum = 1
 	nextGroup = f'{matchGroupOut}.{groupNum}'
 	while nextGroup in existingGroup:
-		groupNum =+ 1
+		groupNum += 1
 		nextGroup = f'{matchGroupOut}.{groupNum}'
 
 	# Get identifiers for Id of interest
@@ -662,16 +774,43 @@ def subGroup(
 
 
 def getSubgroupNum(matchGroupOut, groupNum):
+	"""Get subgroup number
+
+	Args:
+		matchGroupOut (str): Matching group output.
+		groupNum (int): Group number.
+
+	Returns:
+		Next group string, next group number.
+
+	"""
 	nextGroup = f'{matchGroupOut}.{groupNum}'
 	groupNum += 1
 
 	return nextGroup, groupNum
 
 
-# Try to work out subgroups based on Lichenstein distance
 def subGroupV2(
 		idList, medlineDict, embaseDict, scopusDict, firstDict, matchGroupOut,
 		idToGroup, idToSubgroup, subgroupToId, idToDistance):
+	"""Try to work out subgroups based on Lichenstein distance.
+
+	Args:
+		idList (List[str]): List of IDs.
+		medlineDict (dict[str, dict[str, str]]): Medline dict.
+		embaseDict (dict[str, dict[str, str]]): Embase dict.
+		scopusDict (dict[str, dict[str, str]]): SCOPUS dict.
+		firstDict (dict[str, dict[str, str]]): First dict.
+		matchGroupOut (str): Match group for output.
+		idToGroup (dict[str, str]): Dictionary group info.
+		idToSubgroup (dict[str, str]): Dictionary mapping IDs to subgroups
+		subgroupToId (dict[str, str]): Dictionary mapping subgroups to IDs.
+		idToDistance (dict[str, str]): Dictionary mapping IDs to distance.
+
+	Returns:
+		``idToGroup``, ``idToSubgroup``, ``subgroupToId``, and ``idToDistance``.
+
+	"""
 	groupNum = 0
 	idGroup = ';'.join(idList.keys())
 
@@ -857,11 +996,27 @@ def subGroupV2(
 	return idToGroup, idToSubgroup, subgroupToId, idToDistance
 
 
-# Find matches across all input files
 def globalMatcher(
 		idHere, pmid, authorKey, titleMin, globalPmidDict, globalauthorKeyDict,
 		globaltitleMinDict, globalJournalKeyDict, journalKey):
+	"""Find matches across all input files.
 
+	Args:
+		idHere (str): ID.
+		pmid (str): PubMed ID.
+		authorKey (str): Author key.
+		titleMin (str): Title min.
+		globalPmidDict (dict[str, str]): Pubmed ID dict.
+		globalauthorKeyDict (dict[str, str]): Author key dict.
+		globaltitleMinDict (dict[str, str]): Title min dict.
+		globalJournalKeyDict (dict[str, str]): Journal key dict.
+		journalKey (str): Journal key.
+
+	Returns:
+		``globalPmidDict``, ``globalauthorKeyDict``, ``globaltitleMinDict``,
+		and ``globalJournalKeyDict``.
+
+	"""
 	# Record pmid matches
 	if pmid in globalPmidDict:
 		globalPmidDict[pmid] = f'{globalPmidDict[pmid]};{idHere}'
@@ -894,7 +1049,7 @@ def globalMatcher(
 
 
 def main():
-	# Parse arguments
+	"""Parse arguments and find citation overlaps."""
 	parser = argparse.ArgumentParser(
 		description=
 		'Find overlaps between articles downloaded from Medline, Embase, '
