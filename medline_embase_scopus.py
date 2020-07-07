@@ -71,6 +71,41 @@ def printv(x):
 	print("{} = {}".format(r, x))
 
 
+def _parseAuthorNames(row, key, year):
+	"""Get the author names and key.
+
+	Args:
+		row (dict[str, str]): Dictionary from a row.
+		key (str): Author names key in ``row``.
+		year (str): Year to include in author key.
+
+	Returns:
+		List[str], str: Author names list, author key string. Both are None
+		if ``key`` is not found in ``row``.
+
+	"""
+	authorKey = authorNames = '.'
+	names = row.get(key)
+	if names:
+		authorNames = names
+		authorsList = authorNames.split(', ')
+		authorsList = list(filter(None, authorsList))
+		firstAuthor = secondAuthor = lastAuthor = 'None'
+		lenAuthorsList = len(authorsList)
+		if lenAuthorsList >= 1:
+			firstAuthor = authorNameProcess(authorsList[0])
+		if lenAuthorsList >= 2:
+			lastAuthor = authorNameProcess(authorsList[-1])
+		if lenAuthorsList >= 3:
+			secondAuthor = authorNameProcess(authorsList[1])
+
+		authorKey = (
+			f'{firstAuthor.lower()}|{secondAuthor.lower()}|'
+			f'{lastAuthor.lower()}|{year}')
+
+	return authorNames, authorKey
+
+
 def medlineExtract(row):
 	"""Extract key info from Medline.
 
@@ -93,24 +128,7 @@ def medlineExtract(row):
 		if yearMatch2:
 			year = yearMatch2.group(1)
 
-	# Get the author names and author key
-	authorKey = authorNames = '.'
-	if row['Description']:
-		authorNames = row['Description']
-		authorsList = authorNames.split(', ')
-		authorsList = list(filter(None, authorsList))
-		firstAuthor = secondAuthor = lastAuthor = 'None'
-		lenAuthorsList = len(authorsList)
-		if lenAuthorsList >= 1:
-			firstAuthor = authorNameProcess(authorsList[0])
-		if lenAuthorsList >= 2:
-			lastAuthor = authorNameProcess(authorsList[-1])
-		if lenAuthorsList >= 3:
-			secondAuthor = authorNameProcess(authorsList[1])
-
-		authorKey = (
-			f'{firstAuthor.lower()}|{secondAuthor.lower()}|'
-			f'{lastAuthor.lower()}|{year}')
+	authorNames, authorKey = _parseAuthorNames(row, 'Description', year)
 
 	# Get the PMID
 	pmid = 'NoPMID'
@@ -173,29 +191,7 @@ def embaseExtract(row):
 		if yearMatch2:
 			year = yearMatch2.group(1)
 
-	# Get the author names and author key
-	authorKey = authorNames = '.'
-	if row['Author Names']:
-		authorNames = row['Author Names']
-		authorsList = authorNames.split(', ')
-		authorsList = list(filter(None, authorsList))
-		firstAuthor = secondAuthor = lastAuthor = 'None'
-		if len(authorsList) >= 3:
-			firstAuthor = authorNameProcess(authorsList[0])
-			secondAuthor = authorNameProcess(authorsList[1])
-			lastAuthor = authorNameProcess(authorsList[-1])
-		elif len(authorsList) == 2:
-			firstAuthor = authorNameProcess(authorsList[0])
-			secondAuthor = 'None'
-			lastAuthor = authorNameProcess(authorsList[-1])
-		elif len(authorsList) == 1:
-			firstAuthor = authorNameProcess(authorsList[0])
-			secondAuthor = 'None'
-			lastAuthor = 'None'
-
-		authorKey = (
-			f'{firstAuthor.lower()}|{secondAuthor.lower()}|'
-			f'{lastAuthor.lower()}|{year}')
+	authorNames, authorKey = _parseAuthorNames(row, 'Author Names', year)
 
 	# Get the PMID
 	pmid = 'NoPMID'
@@ -262,29 +258,7 @@ def scopusExtract(row):
 	if yearMatch:
 		year = yearMatch.group(1)
 
-	# Get the author names and author key
-	authorKey = authorNames = '.'
-	if row['\ufeffAuthors']:
-		authorNames = row['\ufeffAuthors']
-		authorsList = authorNames.split(', ')
-		authorsList = list(filter(None, authorsList))
-		firstAuthor = secondAuthor = lastAuthor = 'None'
-		if len(authorsList) >= 3:
-			firstAuthor = authorNameProcess(authorsList[0])
-			secondAuthor = authorNameProcess(authorsList[1])
-			lastAuthor = authorNameProcess(authorsList[-1])		
-		elif len(authorsList) == 2:
-			firstAuthor = authorNameProcess(authorsList[0])
-			secondAuthor = 'None'
-			lastAuthor = authorNameProcess(authorsList[-1])
-		elif len(authorsList) == 1:
-			firstAuthor = authorNameProcess(authorsList[0])
-			secondAuthor = 'None'
-			lastAuthor = 'None'
-
-		authorKey = (
-			f'{firstAuthor.lower()}|{secondAuthor.lower()}|'
-			f'{lastAuthor.lower()}|{year}')
+	authorNames, authorKey = _parseAuthorNames(row, '\ufeffAuthors', year)
 
 	# Get the PMID
 	pmid = 'NoPMID'
