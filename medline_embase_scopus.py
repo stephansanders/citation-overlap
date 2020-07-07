@@ -71,6 +71,31 @@ def printv(x):
 	print("{} = {}".format(r, x))
 
 
+def _parseYear(row, search):
+	"""Get the year from a row.
+
+	Args:
+		row (dict[str, str]): Dictionary from a row.
+		search (dict[str, Any]): Dictionary of ``row`` columns
+			to regex search patterns to extract the year. Each pattern may
+			be a sequence of patterns to try for the given column.
+
+	Returns:
+		str: Year.
+
+	"""
+	for key, val in search.items():
+		shortDet = row.get(key)
+		if shortDet is not None:
+			if not isinstance(val, (tuple, list)):
+				val = [val]
+			for pttn in val:
+				yearMatch = re.search(pttn, shortDet)
+				if yearMatch:
+					return yearMatch.group(1)
+	return 'NoYear'
+
+
 def _parseAuthorNames(row, key, year):
 	"""Get the author names and key.
 
@@ -117,17 +142,7 @@ def medlineExtract(row):
 		journal key, full row.
 
 	"""
-	# Get the year
-	year = 'NoYear'
-	shortDet = row['ShortDetails']
-	yearMatch = re.search('.\s+(\d{4})$', shortDet)
-	if yearMatch:
-		year = yearMatch.group(1)
-	else:
-		yearMatch2 = re.search('(\d{4})$', shortDet)
-		if yearMatch2:
-			year = yearMatch2.group(1)
-
+	year = _parseYear(row, {'ShortDetails': (r'.\s+(\d{4})$', r'(\d{4})$')})
 	authorNames, authorKey = _parseAuthorNames(row, 'Description', year)
 
 	# Get the PMID
@@ -178,19 +193,10 @@ def medlineExtract(row):
 
 # Extract key info from Embase
 def embaseExtract(row):
-
-	# Get the year
-	year = 'NoYear'
-	yearDet = row['Date of Publication']
-	yearMatch = re.search('(19\d{2}|20\d{2})', yearDet)
-	if yearMatch:
-		year = yearMatch.group(1)
-	else:
-		yearDet2 = row['Source']
-		yearMatch2 = re.search('(19\d{2}|20\d{2})', yearDet2)
-		if yearMatch2:
-			year = yearMatch2.group(1)
-
+	year = _parseYear(row, {
+		'Date of Publication': r'(19\d{2}|20\d{2})',
+		'Source': r'(19\d{2}|20\d{2})',
+	})
 	authorNames, authorKey = _parseAuthorNames(row, 'Author Names', year)
 
 	# Get the PMID
@@ -250,14 +256,7 @@ def embaseExtract(row):
 
 # Extract key info from Medline
 def scopusExtract(row):
-
-	# Get the year
-	year = 'NoYear'
-	yearDet = row['Year']
-	yearMatch = re.search('(19\d{2}|20\d{2})', yearDet)
-	if yearMatch:
-		year = yearMatch.group(1)
-
+	year = _parseYear(row, {'Year': r'(19\d{2}|20\d{2})'})
 	authorNames, authorKey = _parseAuthorNames(row, '\ufeffAuthors', year)
 
 	# Get the PMID
