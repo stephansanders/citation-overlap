@@ -246,8 +246,17 @@ def medlineExtract(row):
 		journalKey, fullRow
 
 
-# Extract key info from Embase
 def embaseExtract(row):
+	"""Extract key info from Embase.
+
+	Args:
+		row (dict[str, str]): Dictionary from a row.
+
+	Returns:
+		PubMed ID, Embase ID author names, author key, title, title min,
+		year, journal, journal key, full row.
+
+	"""
 	year = _parseYear(row, {
 		'Date of Publication': r'(19\d{2}|20\d{2})',
 		'Source': r'(19\d{2}|20\d{2})',
@@ -264,8 +273,17 @@ def embaseExtract(row):
 		journal, journalKey, fullRow
 
 
-# Extract key info from Medline
 def scopusExtract(row):
+	"""Extract key info from Medline.
+
+	Args:
+		row (dict[str, str]): Dictionary from a row.
+
+	Returns:
+		PubMed ID, author names, author key, title, title min, year, journal,
+		journal key, full row.
+
+	"""
 	year = _parseYear(row, {'Year': r'(19\d{2}|20\d{2})'})
 	authorNames, authorKey = _parseAuthorNames(row, '\ufeffAuthors', year)
 	pmid = _parseID(row, 'PubMed ID', r'(\d+)', warn=False)
@@ -273,6 +291,7 @@ def scopusExtract(row):
 	key = 'Source title'
 	_, journalKey = _parseJournal(row, key)
 
+	# parses journal based on individual columns
 	journal = f'{row[key]} {year};'
 	if row['Volume']:
 		journal = f'{journal}{row["Volume"]}'
