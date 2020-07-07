@@ -205,6 +205,25 @@ def _parseJournal(row, key):
 	return journal, journalKey
 
 
+def _rowToTabDelimStr(row):
+	"""Convert a row to a tab-delimited string
+
+	Args:
+		row (dict[str, str]): Dictionary from a row.
+
+	Returns:
+		str: Tab-delimited string.
+
+	"""
+	rowOut = []
+	rowLen = len(row)
+	for i, field in enumerate(row):
+		if i < rowLen - 1 or str(row[field]) == '["]':
+			# skip last field if not brackets of empty quotes
+			rowOut.append(str(row[field]))
+	return '\t'.join(rowOut)
+
+
 def medlineExtract(row):
 	"""Extract key info from Medline.
 
@@ -221,16 +240,7 @@ def medlineExtract(row):
 	pmid = _parseID(row, 'Identifiers', r'PMID:(\d+)')
 	title, titleMin = _parseTitle(row, 'Title')
 	journal, journalKey = _parseJournal(row, 'Details')
-
-	# Get the full line
-	rowOut = []
-	rowLen = len(row)
-	fieldCount = 0
-	for field in row:
-		fieldCount += 1
-		if fieldCount != rowLen or str(row[field]) == '["]':
-			rowOut.append(str(row[field]))
-	fullRow = '\t'.join(rowOut)
+	fullRow = _rowToTabDelimStr(row)
 
 	return pmid, authorNames, authorKey, title, titleMin, year, journal, \
 		journalKey, fullRow
@@ -248,19 +258,7 @@ def embaseExtract(row):
 		row, 'Embase Accession ID', r'(\d+)', warn=False, default='NoEMID')
 	title, titleMin = _parseTitle(row, '\ufeff"Title"')
 	journal, journalKey = _parseJournal(row, 'Source')
-
-	# Get the full line
-	rowOut = []
-	rowLen = len(row)
-	fieldCount = 0
-	for field in row:
-		fieldCount += 1
-		if fieldCount == rowLen and str(row[field]) != '["]':
-			# print(f'skipping: {row[field]}')
-			next
-		else:
-			rowOut.append(str(row[field]))
-	fullRow = '\t'.join(rowOut)
+	fullRow = _rowToTabDelimStr(row)
 
 	return pmid, emid, authorNames, authorKey, title, titleMin, year, \
 		journal, journalKey, fullRow
@@ -273,9 +271,9 @@ def scopusExtract(row):
 	pmid = _parseID(row, 'PubMed ID', r'(\d+)', warn=False)
 	title, titleMin = _parseTitle(row, 'Title')
 	key = 'Source title'
-	journal = f'{row[key]} {year};'
 	_, journalKey = _parseJournal(row, key)
 
+	journal = f'{row[key]} {year};'
 	if row['Volume']:
 		journal = f'{journal}{row["Volume"]}'
 	if row['Issue']:
@@ -287,18 +285,7 @@ def scopusExtract(row):
 	if row['DOI']:
 		journal = f'{journal}. doi: {row["DOI"]}'
 
-	# Get the full line
-	rowOut = []
-	rowLen = len(row)
-	fieldCount = 0
-	for field in row:
-		fieldCount += 1
-		if fieldCount == rowLen and str(row[field]) != '["]':
-			# print(f'skipping: {row[field]}')
-			next
-		else:
-			rowOut.append(str(row[field]))
-	fullRow = '\t'.join(rowOut)
+	fullRow = _rowToTabDelimStr(row)
 
 	return pmid, authorNames, authorKey, title, titleMin, year, \
 		journal, journalKey, fullRow
