@@ -179,6 +179,32 @@ def _parseTitle(row, key):
 	return title, titleMin
 
 
+def _parseJournal(row, key):
+	"""Get the journal details.
+
+	Args:
+		row (dict[str, str]): Dictionary from a row.
+		key (str): Author names key in ``row``.
+
+	Returns:
+		str, str: Journal and journal key.
+
+	"""
+	journal = row.get(key)
+	journalKey = None
+	if journal:
+		journalName = re.split(r'\d+', journal)
+		journalNameLower = journalName[0].lower()
+		journalNameLowerClean = journalNameLower.translate(str.maketrans(
+			'', '', string.punctuation))  # remove punctuation
+		journalKey = ''
+		for word in journalNameLowerClean.split():
+			threeLetter = word[:3]
+			threeLetter.replace('jou', 'j')
+			journalKey = f'{journalKey}{threeLetter}'
+	return journal, journalKey
+
+
 def medlineExtract(row):
 	"""Extract key info from Medline.
 
@@ -194,18 +220,7 @@ def medlineExtract(row):
 	authorNames, authorKey = _parseAuthorNames(row, 'Description', year)
 	pmid = _parseID(row, 'Identifiers', r'PMID:(\d+)')
 	title, titleMin = _parseTitle(row, 'Title')
-
-	# Get the journal details
-	journal = row['Details']
-	journalName = re.split(r'\d+', journal)
-	journalNameLower = journalName[0].lower()
-	journalNameLowerClean = journalNameLower.translate(str.maketrans(
-		'', '', string.punctuation))  # remove punctuation
-	journalKey = ''
-	for word in journalNameLowerClean.split():
-		threeLetter = word[:3]
-		threeLetter.replace('jou', 'j')
-		journalKey = f'{journalKey}{threeLetter}'
+	journal, journalKey = _parseJournal(row, 'Details')
 
 	# Get the full line
 	rowOut = []
@@ -232,18 +247,7 @@ def embaseExtract(row):
 	emid = _parseID(
 		row, 'Embase Accession ID', r'(\d+)', warn=False, default='NoEMID')
 	title, titleMin = _parseTitle(row, '\ufeff"Title"')
-
-	# Get the journal details
-	journal = row['Source']
-	journalName = re.split(r'\d+', journal)
-	journalNameLower = journalName[0].lower()
-	journalNameLowerClean = journalNameLower.translate(str.maketrans(
-		'', '', string.punctuation))  # remove punctuation
-	journalKey = ''
-	for word in journalNameLowerClean.split():
-		threeLetter = word[:3]
-		threeLetter.replace('jou', 'j')
-		journalKey = f'{journalKey}{threeLetter}'
+	journal, journalKey = _parseJournal(row, 'Source')
 
 	# Get the full line
 	rowOut = []
@@ -268,18 +272,9 @@ def scopusExtract(row):
 	authorNames, authorKey = _parseAuthorNames(row, '\ufeffAuthors', year)
 	pmid = _parseID(row, 'PubMed ID', r'(\d+)', warn=False)
 	title, titleMin = _parseTitle(row, 'Title')
-
-	# Get the journal details
-	journal = f'{row["Source title"]} {year};'
-	journalName = re.split(r'\d+', row["Source title"])
-	journalNameLower = journalName[0].lower()
-	journalNameLowerClean = journalNameLower.translate(str.maketrans(
-		'', '', string.punctuation))  # remove punctuation
-	journalKey = ''
-	for word in journalNameLowerClean.split():
-		threeLetter = word[:3]
-		threeLetter.replace('jou', 'j')
-		journalKey = f'{journalKey}{threeLetter}'
+	key = 'Source title'
+	journal = f'{row[key]} {year};'
+	_, journalKey = _parseJournal(row, key)
 
 	if row['Volume']:
 		journal = f'{journal}{row["Volume"]}'
