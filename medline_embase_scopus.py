@@ -100,18 +100,13 @@ def medlineExtract(row):
 		authorsList = authorNames.split(', ')
 		authorsList = list(filter(None, authorsList))
 		firstAuthor = secondAuthor = lastAuthor = 'None'
-		if len(authorsList) >= 3:
+		lenAuthorsList = len(authorsList)
+		if lenAuthorsList >= 1:
 			firstAuthor = authorNameProcess(authorsList[0])
+		if lenAuthorsList >= 2:
+			lastAuthor = authorNameProcess(authorsList[-1])
+		if lenAuthorsList >= 3:
 			secondAuthor = authorNameProcess(authorsList[1])
-			lastAuthor = authorNameProcess(authorsList[-1])
-		elif len(authorsList) == 2:
-			firstAuthor = authorNameProcess(authorsList[0])
-			secondAuthor = 'None'
-			lastAuthor = authorNameProcess(authorsList[-1])
-		elif len(authorsList) == 1:
-			firstAuthor = authorNameProcess(authorsList[0])
-			secondAuthor = 'None'
-			lastAuthor = 'None'
 
 		authorKey = (
 			f'{firstAuthor.lower()}|{secondAuthor.lower()}|'
@@ -124,7 +119,7 @@ def medlineExtract(row):
 	if pmidMatch:
 		pmid = pmidMatch.group(1)
 	else:
-		print ('ERR: No PMID: '+pmidField)
+		print('ERR: No PMID:' + pmidField)
 
 	# Get the shortest unique title
 	title = 'noTitle'
@@ -155,10 +150,7 @@ def medlineExtract(row):
 	fieldCount = 0
 	for field in row:
 		fieldCount += 1
-		if fieldCount == rowLen and str(row[field]) != '["]':
-			# print(f'skipping: {row[field]}')
-			next
-		else:
+		if fieldCount != rowLen or str(row[field]) == '["]':
 			rowOut.append(str(row[field]))
 	fullRow = '\t'.join(rowOut)
 
