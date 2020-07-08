@@ -310,102 +310,6 @@ def scopusExtract(row):
 		journal, journalKey, fullRow
 
 
-def firstExtract(row, lineCount):
-	"""Extract key info from Medline.
-
-	Args:
-		row (dict[str, str]): Dictionary from a row.
-		lineCount (int): Line count.
-
-	Returns:
-		PubMed ID, author names, author key, title, title min, year,
-		journal, journal key, full row.
-
-	"""
-	# Get the year
-	year = 'NoYear'
-	yearDet = row['YR']
-	yearMatch = re.search('(19\d{2}|20\d{2})', yearDet)
-	if yearMatch:
-		year = yearMatch.group(1)
-
-	# Get the author names and author key
-	authorKey = authorNames = '.'
-	if row['AU']:
-		authorNames = row['AU']
-		authorsList = authorNames.split(', ')
-		authorsList = list(filter(None, authorsList))
-		firstAuthor = secondAuthor = lastAuthor = 'None'
-		if len(authorsList) >= 3:
-			firstAuthor = authorNameProcess(authorsList[0])
-			secondAuthor = authorNameProcess(authorsList[1])
-			lastAuthor = authorNameProcess(authorsList[-1])
-		elif len(authorsList) == 2:
-			firstAuthor = authorNameProcess(authorsList[0])
-			secondAuthor = 'None'
-			lastAuthor = authorNameProcess(authorsList[-1])
-		elif len(authorsList) == 1:
-			firstAuthor = authorNameProcess(authorsList[0])
-			secondAuthor = 'None'
-			lastAuthor = 'None'
-
-		authorKey = (
-			f'{firstAuthor.lower()}|{secondAuthor.lower()}|'
-			f'{lastAuthor.lower()}|{year}')
-
-	# Get the PMID
-	pmid = 'NoPMID'
-	pmidMatch = ''
-	if lineCount >= 4395:
-		pmidField = row['UI']
-		pmidMatch = re.search('^(\d+)$', pmidField)
-	else:
-		pmidField = row['PM']
-		pmidMatch = re.search('^(\d+)\s+', pmidField)
-
-	if pmidMatch:
-		pmid = pmidMatch.group(1)
-
-	# Get the shortest unique title
-	title = 'noTitle'
-	titleMin = '.'
-	if row['TI']:
-		title = row['TI']
-		titleField = row['TI'].lower()
-		titleFieldClean = titleField.translate(str.maketrans(
-			'', '', string.punctuation))  # remove punctuation
-		titleList = titleFieldClean.split()
-		titleMin = '_'.join(titleList[:7])
-
-	# Get the journal details
-	journal = row['SO']
-	journalName = re.split(r'\d+', journal)
-	journalNameLower = journalName[0].lower()
-	journalNameLowerClean = journalNameLower.translate(str.maketrans(
-		'', '', string.punctuation))  # remove punctuation
-	journalKey = ''
-	for word in journalNameLowerClean.split():
-		threeLetter = word[:3]
-		threeLetter.replace('jou', 'j')
-		journalKey = f'{journalKey}{threeLetter}'
-
-	# Get the full line
-	rowOut = []
-	rowLen = len(row)
-	fieldCount = 0
-	for field in row:
-		fieldCount += 1
-		if fieldCount == rowLen and str(row[field]) != '["]':
-			# print(f'skipping: {row[field]}')
-			next
-		else:
-			rowOut.append(str(row[field]))
-	fullRow = '\t'.join(rowOut)
-
-	return pmid, authorNames, authorKey, title, titleMin, year, \
-		journal, journalKey, fullRow
-
-
 def fileNamer(inputFile):
 	"""Get the clean version output file name.
 
@@ -470,7 +374,7 @@ def matchListMaker(
 	return matchKeyDict, len(matchKeyDict), basisDict
 
 
-def getDetails(extraId, medlineDict, embaseDict, scopusDict, firstDict):
+def getDetails(extraId, medlineDict, embaseDict, scopusDict):
 	"""Get PMID, authorKey and TitleMin for a given ID.
 
 	Args:
@@ -478,7 +382,6 @@ def getDetails(extraId, medlineDict, embaseDict, scopusDict, firstDict):
 		medlineDict (dict[str, dict[str, str]]): Medline dict.
 		embaseDict (dict[str, dict[str, str]]): Embase dict.
 		scopusDict (dict[str, dict[str, str]]): SCOPUS dict.
-		firstDict (dict[str, dict[str, str]]): First dict.
 
 	Returns:
 		PMID, authorKey and TitleMin.
@@ -497,10 +400,6 @@ def getDetails(extraId, medlineDict, embaseDict, scopusDict, firstDict):
 		pmidExtraId = scopusDict[extraId]['pmid']
 		authorKeyExtraId = scopusDict[extraId]['authorKey']
 		titleMinExtraId = scopusDict[extraId]['titleMin']
-	elif extraId.startswith('ONE'):
-		pmidExtraId = firstDict[extraId]['pmid']
-		authorKeyExtraId = firstDict[extraId]['authorKey']
-		titleMinExtraId = firstDict[extraId]['titleMin']
 
 	return pmidExtraId, authorKeyExtraId, titleMinExtraId
 
@@ -749,7 +648,7 @@ def getSubgroupNum(matchGroupOut, groupNum):
 
 
 def subGroupV2(
-		idList, medlineDict, embaseDict, scopusDict, firstDict, matchGroupOut,
+		idList, medlineDict, embaseDict, scopusDict, matchGroupOut,
 		idToGroup, idToSubgroup, subgroupToId, idToDistance):
 	"""Try to work out subgroups based on Lichenstein distance.
 
@@ -758,7 +657,6 @@ def subGroupV2(
 		medlineDict (dict[str, dict[str, str]]): Medline dict.
 		embaseDict (dict[str, dict[str, str]]): Embase dict.
 		scopusDict (dict[str, dict[str, str]]): SCOPUS dict.
-		firstDict (dict[str, dict[str, str]]): First dict.
 		matchGroupOut (str): Match group for output.
 		idToGroup (dict[str, str]): Dictionary group info.
 		idToSubgroup (dict[str, str]): Dictionary mapping IDs to subgroups
@@ -794,11 +692,6 @@ def subGroupV2(
 			aDict[idName] = scopusDict[idName]['authorKey']
 			tDict[idName] = scopusDict[idName]['titleMin']
 			jDict[idName] = scopusDict[idName]['journalKey']
-		elif idName.startswith('ONE'):
-			pDict[idName] = firstDict[idName]['pmid']
-			aDict[idName] = firstDict[idName]['authorKey']
-			tDict[idName] = firstDict[idName]['titleMin']
-			jDict[idName] = firstDict[idName]['journalKey']
 
 	# Initialize the dictionary
 	for idName in idList:
@@ -1369,126 +1262,7 @@ def main():
 			scoOut.write(
 				f'{match}\t{basisOut}\t{matchGroupOut}'
 				f'\t{scopusDict[scoId]["row"]}\n')
-	
-	# Process embase file
-	firstDict = {}
-	if args.first:
-	
-		print('\n#############################################################')
-		print(' Processing the Initial search file')
-		print('#############################################################\n')
-	
-		# Load the skip list
-		skipListName = ''  # TODO: set custom file
-		skipList = open(skipListName, 'r')
-		skipper = {}
-		for entry in skipList:
-			skipper[entry.strip()] = 5
-	
-		cleanFileName = fileNamer(args.first)
-		firOut = open(cleanFileName, 'w')
-	
-		# Process the file
-		pmidDict = {}
-		authorKeyDict = {}
-		titleMinDict = {}
-		journalKeyDict = {}
-		with open(args.first, encoding="utf8") as csvfile:
-	
-			firstCsv = csv.DictReader(csvfile, delimiter=',', quotechar='"',)
-			firstHeaders = list(firstCsv.fieldnames)
-			firstColCount = len(firstHeaders)
-			firstHeadersOut = '\t'.join(firstHeaders)
-			firOut.write(
-				f'Embase_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key'
-				f'\tTitle\tTitle_Key\t')
-			firOut.write(
-				f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity'
-				f'\tSimilar_group\t{firstHeadersOut}\n')
-	
-			lineCount = 0
-			for row in firstCsv:
-				lineCount += 1
-				firId = 'ONE_'+'{:05d}'.format(lineCount)
-				if firId not in skipper:
-					pmid, authorNames, authorKey, title, titleMin, year, \
-						journal, journalKey, fullRow = firstExtract(
-							row, lineCount)
-	
-					# Store the info
-					firstDict[firId] = {}
-					firstDict[firId]['row'] = fullRow
-					firstDict[firId]['pmid'] = pmid
-					firstDict[firId]['authorNames'] = authorNames
-					firstDict[firId]['authorKey'] = authorKey
-					firstDict[firId]['title'] = title
-					firstDict[firId]['titleMin'] = titleMin
-					firstDict[firId]['year'] = year
-					firstDict[firId]['journal'] = journal
-					firstDict[firId]['journalKey'] = journalKey
-	
-					# Record pmid matches
-					if pmid in pmidDict:
-						pmidDict[pmid] = f'{pmidDict[pmid]};{firId}'
-					else:
-						pmidDict[pmid] = firId
-	
-					# Record authorKey matches
-					if authorKey in authorKeyDict:
-						authorKeyDict[authorKey] = \
-							f'{authorKeyDict[authorKey]};{firId}'
-					else:
-						authorKeyDict[authorKey] = firId
-	
-					# Record titleMin matches
-					if titleMin in titleMinDict:
-						titleMinDict[titleMin] = \
-							f'{titleMinDict[titleMin]};{firId}'
-					elif titleMin != '.':
-						titleMinDict[titleMin] = firId
-	
-					# Record journalKey matches
-					if journalKey in journalKeyDict:
-						journalKeyDict[journalKey] = \
-							f'{journalKeyDict[journalKey]};{firId}'
-					else:
-						journalKeyDict[journalKey] = firId
-	
-					# Record global matches
-					globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, \
-						globalJournalKeyDict = globalMatcher(
-							firId, pmid, authorKey, titleMin, globalPmidDict,
-							globalAuthorKeyDict, globalTitleMinDict,
-							globalJournalKeyDict, journalKey)
-	
-		# Printout the file
-		keyList = firstDict.keys()
-		matchCount = 0
-		matchGroup = {}
-		for firId in sorted (keyList):
-	
-			pmidHere = firstDict[firId]['pmid']
-			authorKeyHere = firstDict[firId]['authorKey']
-			titleMinHere = firstDict[firId]['titleMin']
-			match, basisOut, matchGroupOut, matchCount, matchGroup = \
-				matchFinder(
-					pmidHere, authorKeyHere, titleMinHere, pmidDict,
-					authorKeyDict, titleMinDict, matchCount, firId, matchGroup)
-			
-			# Print out clean version
-			firOut.write(
-				f'{firId}\t{pmidHere}\t{firstDict[firId]["authorNames"]}'
-				f'\t{firstDict[firId]["year"]}\t')
-			firOut.write(
-				f'{authorKeyHere}\t{firstDict[firId]["title"]}'
-				f'\t{titleMinHere}\t')
-			firOut.write(
-				f'{firstDict[firId]["journal"]}'
-				f'\t{firstDict[firId]["journalKey"]}\t')
-			firOut.write(
-				f'{match}\t{basisOut}\t{matchGroupOut}'
-				f'\t{firstDict[firId]["row"]}\n')
-	
+
 	print('\n#################################################################')
 	print(' Looking for overlaps')
 	print('#################################################################\n')
@@ -1527,8 +1301,7 @@ def main():
 						# printv(extraId)
 						pmidExtraId, authorKeyExtraId, titleMinExtraId = \
 							getDetails(
-								extraId, medlineDict, embaseDict, scopusDict,
-								firstDict)
+								extraId, medlineDict, embaseDict, scopusDict)
 						if extraId != medId:
 							matchKeyDict, matchKeyDictLenNew, basisDict = \
 								matchListMaker(
@@ -1554,7 +1327,7 @@ def main():
 					idToGroup, idToSubgroup, subgroupToId, idToDistance = \
 						subGroupV2(
 							matchKeyDict, medlineDict, embaseDict, scopusDict,
-							firstDict, matchGroupOut, idToGroup,
+							matchGroupOut, idToGroup,
 							idToSubgroup, subgroupToId, idToDistance)
 				else:
 					idToSubgroup[medId] = '.'
@@ -1624,7 +1397,7 @@ def main():
 			while end == 0:
 				for extraId in matchKeyList.split('|'):
 					pmidExtraId, authorKeyExtraId, titleMinExtraId = getDetails(
-						extraId, medlineDict, embaseDict, scopusDict, firstDict)
+						extraId, medlineDict, embaseDict, scopusDict)
 					if extraId != embId:
 						matchKeyDict, matchKeyDictLenNew, basisDict = \
 							matchListMaker(
@@ -1650,7 +1423,7 @@ def main():
 				idToGroup, idToSubgroup, subgroupToId, idToDistance = \
 					subGroupV2(
 						matchKeyDict, medlineDict, embaseDict, scopusDict,
-						firstDict, matchGroupOut, idToGroup, idToSubgroup,
+						matchGroupOut, idToGroup, idToSubgroup,
 						subgroupToId, idToDistance)
 			else:
 				idToSubgroup[embId] = '.'
@@ -1722,7 +1495,7 @@ def main():
 			while end == 0:
 				for extraId in matchKeyList.split('|'):
 					pmidExtraId, authorKeyExtraId, titleMinExtraId = getDetails(
-						extraId, medlineDict, embaseDict, scopusDict, firstDict)
+						extraId, medlineDict, embaseDict, scopusDict)
 					if extraId != scoId:
 						matchKeyDict, matchKeyDictLenNew, basisDict = \
 							matchListMaker(
@@ -1747,7 +1520,7 @@ def main():
 				idToGroup, idToSubgroup, subgroupToId, idToDistance = \
 					subGroupV2(
 						matchKeyDict, medlineDict, embaseDict, scopusDict,
-						firstDict, matchGroupOut, idToGroup, idToSubgroup,
+						matchGroupOut, idToGroup, idToSubgroup,
 						subgroupToId, idToDistance)
 			else:
 				idToSubgroup[scoId] = '.'
@@ -1794,105 +1567,6 @@ def main():
 			allOut.write(
 				f'{authorKeyHere}\t{scopusDict[scoId]["title"]}\t{titleMinHere}'
 				f'\t{scopusDict[scoId]["journal"]}\t{journalKey}\t')
-			allOut.write(
-				f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}'
-				f'\t{medStat}\t{embStat}\t{scoStat}\t{firStat}\t{mainRecord}\n')
-	
-	if args.first:
-		for firId in firstDict:
-			pmidHere = firstDict[firId]['pmid']
-			authorKeyHere = firstDict[firId]['authorKey']
-			titleMinHere = firstDict[firId]['titleMin']
-			journalKey = firstDict[firId]['journalKey']
-			
-			# Find matches
-			matchKeyDict = {}
-			basisDict = {}
-			matchKeyDict, matchKeyDictLenLast, basisDict = matchListMaker(
-				pmidHere, authorKeyHere, titleMinHere, globalPmidDict,
-				globalAuthorKeyDict, globalTitleMinDict, firId, matchKeyDict,
-				basisDict)
-			matchKeyDictLenNew = end = 0
-			matchKeyList = '|'.join(matchKeyDict.keys())
-	
-			# Extend to all possible matches
-			while end == 0:
-				for extraId in matchKeyList.split('|'):
-					pmidExtraId, authorKeyExtraId, titleMinExtraId = getDetails(
-						extraId, medlineDict, embaseDict, scopusDict, firstDict)
-					if extraId != firId:
-						matchKeyDict, matchKeyDictLenNew, basisDict = \
-							matchListMaker(
-								pmidExtraId, authorKeyExtraId,
-								titleMinExtraId, globalPmidDict,
-								globalAuthorKeyDict, globalTitleMinDict,
-								extraId, matchKeyDict, basisDict)
-				if matchKeyDictLenLast == matchKeyDictLenNew:
-					end = 1
-				else:
-					matchKeyDictLenLast = matchKeyDictLenNew
-					matchKeyList = '|'.join(matchKeyDict.keys())
-			
-			# Work out groups
-			match, basisOut, matchGroupOut, globalmatchCount, matchGroupNew = \
-				findGroups(
-					firId, matchKeyDict, basisDict, globalmatchCount,
-					matchGroupNew)
-	
-			# Work out subgroups
-			matchDist = '.'
-			if match != '.':
-				idToGroup, idToSubgroup, subgroupToId, idToDistance = \
-					subGroupV2(
-						matchKeyDict, medlineDict, embaseDict, scopusDict,
-						firstDict, matchGroupOut, idToGroup, idToSubgroup,
-						subgroupToId, idToDistance)
-			else:
-				idToSubgroup[firId] = '.'
-				idToGroup[firId] = '.'
-	
-			# Assess subgroup status
-			matchSubGroupOut = idToSubgroup[firId]
-			matchSub = '.'
-			for idName in subgroupToId[matchSubGroupOut].split(';'):
-				if idName != firId and idName != '':
-					if matchSub == '.':
-						matchSub = f'{idName}({idToDistance[firId][idName]})'
-					else:
-						matchSub = \
-							f'{matchSub};{idName}' \
-							f'({idToDistance[firId][idName]})'
-	
-			# Assess group status
-			match = '.'
-			for idName in idToGroup[firId].split(';'):
-				if idName != firId and idName != '.':
-					if match == '.':
-						match = f'{idName}({idToDistance[firId][idName]})'
-					else:
-						match = \
-							f'{match};{idName}' \
-							f'({idToDistance[firId][idName]})'
-	
-			# Assess contributors
-			medStat = matchSub.count('MED')
-			embStat = matchSub.count('EMB')
-			scoStat = matchSub.count('SCO')
-			firStat = matchSub.count('ONE') + 1
-			papersInGroup = medStat+embStat+scoStat+firStat
-	
-			mainRecord = 'N'
-			if 'MED' not in matchSub and 'EMB' not in matchSub \
-					and 'SCO' not in matchSub:
-				mainRecord = 'Y'
-	
-			# Print out clean version
-			allOut.write(
-				f'{firId}\t{pmidHere}\t{firstDict[firId]["authorNames"]}'
-				f'\t{firstDict[firId]["year"]}\t')
-			allOut.write(
-				f'{authorKeyHere}\t{firstDict[firId]["title"]}\t{titleMinHere}'
-				f'\t{firstDict[firId]["journal"]}\t{journalKey}\t')
 			allOut.write(
 				f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}'
 				f'\t{medStat}\t{embStat}\t{scoStat}\t{firStat}\t{mainRecord}\n')
