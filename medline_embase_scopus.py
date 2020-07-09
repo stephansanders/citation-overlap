@@ -2,9 +2,8 @@
 # Usage: python3 medline_embase_scopus.py -m pubmed_result.csv -e embase_noTitle.csv -s scopus_all.csv
 # Author: Stephan Sanders
 
+from enum import Enum, auto
 import csv # CSV files
-import os # OS interfaces
-import sys
 import re # regex
 import string # string manipulation
 import argparse # arguments parser
@@ -34,6 +33,20 @@ import hdbscan # pip3 install hdbscan
 # Add PubMed ID (you may want to add Abstract too)
 # Click Export
 # Combine the lists in a text editor or Google Sheet, not in Excel
+
+
+class ExtractKeys(Enum):
+	"""Database extraction output keys."""
+	ROW = 'row'
+	PMID = 'pmid'
+	EMID = 'emid'
+	AUTHOR_NAMES = 'authorNames'
+	AUTHOR_KEY = 'authorKey'
+	TITLE = 'title'
+	TITLE_MIN = 'titleMin'
+	YEAR = 'year'
+	JOURNAL = 'journal'
+	JOURNAL_KEY = 'journalKey'
 
 
 def authorNameProcess(name):
@@ -231,19 +244,22 @@ def medlineExtract(row):
 		row (dict[str, str]): Dictionary from a row.
 
 	Returns:
-		PubMed ID, author names, author key, title, title min, year, journal,
-		journal key, full row.
+		dict[:obj:`ExtractKeys`, str]: Dictionary of extracted elements,
+		with values defaulting to None if not found.
 
 	"""
+	extraction = dict.fromkeys(ExtractKeys, None)
 	year = _parseYear(row, {'ShortDetails': (r'.\s+(\d{4})$', r'(\d{4})$')})
-	authorNames, authorKey = _parseAuthorNames(row, 'Description', year)
-	pmid = _parseID(row, 'Identifiers', r'PMID:(\d+)')
-	title, titleMin = _parseTitle(row, 'Title')
-	journal, journalKey = _parseJournal(row, 'Details')
-	fullRow = _rowToTabDelimStr(row)
-
-	return pmid, authorNames, authorKey, title, titleMin, year, journal, \
-		journalKey, fullRow
+	extraction[ExtractKeys.YEAR] = year
+	extraction[ExtractKeys.AUTHOR_NAMES], extraction[ExtractKeys.AUTHOR_KEY] \
+		= _parseAuthorNames(row, 'Description', year)
+	extraction[ExtractKeys.PMID] = _parseID(row, 'Identifiers', r'PMID:(\d+)')
+	extraction[ExtractKeys.TITLE], extraction[ExtractKeys.TITLE_MIN] \
+		= _parseTitle(row, 'Title')
+	extraction[ExtractKeys.JOURNAL], extraction[ExtractKeys.JOURNAL_KEY] \
+		= _parseJournal(row, 'Details')
+	extraction[ExtractKeys.ROW] = _rowToTabDelimStr(row)
+	return extraction
 
 
 def embaseExtract(row):
@@ -253,24 +269,29 @@ def embaseExtract(row):
 		row (dict[str, str]): Dictionary from a row.
 
 	Returns:
-		PubMed ID, Embase ID author names, author key, title, title min,
-		year, journal, journal key, full row.
+		dict[:obj:`ExtractKeys`, str]: Dictionary of extracted elements,
+		with values defaulting to None if not found.
 
 	"""
+	extraction = dict.fromkeys(ExtractKeys, None)
 	year = _parseYear(row, {
 		'Date of Publication': r'(19\d{2}|20\d{2})',
 		'Source': r'(19\d{2}|20\d{2})',
 	})
-	authorNames, authorKey = _parseAuthorNames(row, 'Author Names', year)
-	pmid = _parseID(row, 'Medline PMID', r'(\d+)', warn=False)
-	emid = _parseID(
+	extraction[ExtractKeys.YEAR] = year
+	extraction[ExtractKeys.AUTHOR_NAMES], extraction[ExtractKeys.AUTHOR_KEY] \
+		= _parseAuthorNames(row, 'Author Names', year)
+	extraction[ExtractKeys.PMID] = _parseID(
+		row, 'Medline PMID', r'(\d+)', warn=False)
+	# get additional ID
+	extraction[ExtractKeys.EMID] = _parseID(
 		row, 'Embase Accession ID', r'(\d+)', warn=False, default='NoEMID')
-	title, titleMin = _parseTitle(row, '\ufeff"Title"')
-	journal, journalKey = _parseJournal(row, 'Source')
-	fullRow = _rowToTabDelimStr(row)
-
-	return pmid, emid, authorNames, authorKey, title, titleMin, year, \
-		journal, journalKey, fullRow
+	extraction[ExtractKeys.TITLE], extraction[ExtractKeys.TITLE_MIN] \
+		= _parseTitle(row, '\ufeff"Title"')
+	extraction[ExtractKeys.JOURNAL], extraction[ExtractKeys.JOURNAL_KEY] \
+		= _parseJournal(row, 'Source')
+	extraction[ExtractKeys.ROW] = _rowToTabDelimStr(row)
+	return extraction
 
 
 def scopusExtract(row):
@@ -280,16 +301,21 @@ def scopusExtract(row):
 		row (dict[str, str]): Dictionary from a row.
 
 	Returns:
-		PubMed ID, author names, author key, title, title min, year, journal,
-		journal key, full row.
+		dict[:obj:`ExtractKeys`, str]: Dictionary of extracted elements,
+		with values defaulting to None if not found.
 
 	"""
+	extraction = dict.fromkeys(ExtractKeys, None)
 	year = _parseYear(row, {'Year': r'(19\d{2}|20\d{2})'})
-	authorNames, authorKey = _parseAuthorNames(row, '\ufeffAuthors', year)
-	pmid = _parseID(row, 'PubMed ID', r'(\d+)', warn=False)
-	title, titleMin = _parseTitle(row, 'Title')
+	extraction[ExtractKeys.YEAR] = year
+	extraction[ExtractKeys.AUTHOR_NAMES], extraction[ExtractKeys.AUTHOR_KEY] \
+		= _parseAuthorNames(row, '\ufeffAuthors', year)
+	extraction[ExtractKeys.PMID] = _parseID(
+		row, 'PubMed ID', r'(\d+)', warn=False)
+	extraction[ExtractKeys.TITLE], extraction[ExtractKeys.TITLE_MIN] \
+		= _parseTitle(row, 'Title')
 	key = 'Source title'
-	_, journalKey = _parseJournal(row, key)
+	_, extraction[ExtractKeys.JOURNAL_KEY] = _parseJournal(row, key)
 
 	# parses journal based on individual columns
 	journal = f'{row[key]} {year};'
@@ -303,11 +329,10 @@ def scopusExtract(row):
 		journal = f'{journal}:{row["Page start"]}-{row["Page end"]}'
 	if row['DOI']:
 		journal = f'{journal}. doi: {row["DOI"]}'
+	extraction[ExtractKeys.JOURNAL] = journal
 
-	fullRow = _rowToTabDelimStr(row)
-
-	return pmid, authorNames, authorKey, title, titleMin, year, \
-		journal, journalKey, fullRow
+	extraction[ExtractKeys.ROW] = _rowToTabDelimStr(row)
+	return extraction
 
 
 def fileNamer(inputFile):
@@ -899,6 +924,145 @@ def globalMatcher(
 		globalJournalKeyDict
 
 
+def processDatabase(
+		path, dbName, fn_extract, globalPmidDict, globalAuthorKeyDict,
+		globalTitleMinDict, globalJournalKeyDict, headerMainId=None):
+	"""Process a database TSV file.
+
+	Args:
+		path (str): Path to the TSV file.
+		dbName (str): Database name.
+		fn_extract (func): Extraction function for parsing the database
+			contents.
+		globalPmidDict (dict): Global dictionary of PubMed IDs.
+		globalAuthorKeyDict (dict): Global dictionary of author keys.
+		globalTitleMinDict (dict): Global dictionary of short titles.
+		globalJournalKeyDict (dict): Global dictionary of journal keys.
+		headerMainId (str): String for the main ID in the header; defaults
+			to None, in which case the header will be constructed from
+			``dbName``.
+
+	Returns:
+
+	"""
+	print('\n#############################################################')
+	print(f' Processing a {dbName} file')
+	print('#############################################################\n')
+
+	if not headerMainId:
+		headerMainId = f'{dbName}_ID'
+
+	procDict = {}
+	cleanFileName = fileNamer(path)
+	pubOut = open(cleanFileName, 'w')
+
+	# Process the file
+	pmidDict = {}
+	authorKeyDict = {}
+	titleMinDict = {}
+	journalKeyDict = {}
+	with open(path, encoding="utf8") as csvfile:
+
+		pubmedCsv = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+
+		lineCount = 0
+		for row in pubmedCsv:
+			lineCount += 1
+			dbId = f'{dbName[:3].upper()}_{lineCount:05d}'
+			extraction = fn_extract(row)
+
+			# Store the info
+			procDict[dbId] = {
+				k.value: v for k, v in extraction.items()}
+			pmid = extraction[ExtractKeys.PMID]
+			authorKey = extraction[ExtractKeys.AUTHOR_KEY]
+			titleMin = extraction[ExtractKeys.TITLE_MIN]
+			journalKey = extraction[ExtractKeys.JOURNAL_KEY]
+
+			# Record pmid matches
+			if pmid in pmidDict:
+				pmidDict[pmid] = f'{pmidDict[pmid]};{dbId}'
+			else:
+				pmidDict[pmid] = dbId
+
+			# Record authorKey matches
+			if authorKey in authorKeyDict:
+				authorKeyDict[authorKey] = \
+					f'{authorKeyDict[authorKey]};{dbId}'
+			else:
+				authorKeyDict[authorKey] = dbId
+
+			# Record titleMin matches
+			if titleMin in titleMinDict:
+				titleMinDict[titleMin] = f'{titleMinDict[titleMin]};{dbId}'
+			else:
+				titleMinDict[titleMin] = dbId
+
+			# Record journalKey matches
+			if journalKey in journalKeyDict:
+				journalKeyDict[journalKey] = \
+					f'{journalKeyDict[journalKey]};{dbId}'
+			else:
+				journalKeyDict[journalKey] = dbId
+
+			# Record global matches
+			globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, \
+				globalJournalKeyDict = globalMatcher(
+					dbId, pmid, authorKey, titleMin, globalPmidDict,
+					globalAuthorKeyDict, globalTitleMinDict,
+					globalJournalKeyDict, journalKey)
+
+	# Printout the file
+	keyList = procDict.keys()
+	matchCount = 0
+	matchGroup = {}
+	headerIds = None
+	for dbId in sorted(keyList):
+
+		pmidHere = procDict[dbId]['pmid']
+		authorKeyHere = procDict[dbId]['authorKey']
+		titleMinHere = procDict[dbId]['titleMin']
+		match, basisOut, matchGroupOut, matchCount, matchGroup = \
+			matchFinder(
+				pmidHere, authorKeyHere, titleMinHere, pmidDict,
+				authorKeyDict, titleMinDict, matchCount, dbId, matchGroup)
+
+		# concatenate available IDs
+		ids = (dbId, pmidHere, procDict[dbId][ExtractKeys.EMID.value])
+		idsStr = '\t'.join([i for i in ids if i is not None])
+		if headerIds is None:
+			# construct headers based on available IDs
+			pubmedHeaders = list(pubmedCsv.fieldnames)
+			pubmedHeadersOut = '\t'.join(pubmedHeaders)
+			headerIdKeys = [
+				f'{headerMainId}', ExtractKeys.PMID.value.upper(),
+				ExtractKeys.EMID.value.upper()]
+			headerIds = '\t'.join(
+				[h for h, i in zip(headerIdKeys, ids) if i is not None])
+			pubOut.write(
+				f'{headerIds}\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle'
+				f'\tTitle_Key\t')
+			pubOut.write(
+				f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity'
+				f'\tSimilar_group\t{pubmedHeadersOut}\n')
+
+		# Print out clean version
+		pubOut.write(
+			f'{idsStr}\t{procDict[dbId]["authorNames"]}'
+			f'\t{procDict[dbId]["year"]}\t')
+		pubOut.write(
+			f'{authorKeyHere}\t{procDict[dbId]["title"]}'
+			f'\t{titleMinHere}\t')
+		pubOut.write(
+			f'{procDict[dbId]["journal"]}'
+			f'\t{procDict[dbId]["journalKey"]}\t')
+		pubOut.write(
+			f'{match}\t{basisOut}\t{matchGroupOut}'
+			f'\t{procDict[dbId]["row"]}\n')
+
+	return procDict
+
+
 def main():
 	"""Parse arguments and find citation overlaps."""
 	parser = argparse.ArgumentParser(
@@ -931,337 +1095,27 @@ def main():
 	allOut.write(
 		f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tGroup'
 		f'\tPapers_In_Group\tMedline\tEmbase\tScopus\tFirst\tMainRecord\n')
-	
-	# Process medline file
+
 	medlineDict = {}
 	if args.medline:
-	
-		print('\n#############################################################')
-		print(' Processing a Medline file')
-		print('#############################################################\n')
-	
-		cleanFileName = fileNamer(args.medline)
-		pubOut = open(cleanFileName, 'w')
-	
-		# Process the file
-		pmidDict = {}
-		authorKeyDict = {}
-		titleMinDict = {}
-		journalKeyDict = {}
-		with open(args.medline, encoding="utf8") as csvfile:
-	
-			pubmedCsv = csv.DictReader(csvfile, delimiter=',', quotechar='"',)
-			pubmedHeaders = list(pubmedCsv.fieldnames)
-			pubmedColCount = len(pubmedHeaders)
-			pubmedHeadersOut = '\t'.join(pubmedHeaders)
-			pubOut.write(
-				f'Medline_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle'
-				f'\tTitle_Key\t')
-			pubOut.write(
-				f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity'
-				f'\tSimilar_group\t{pubmedHeadersOut}\n')
-	
-			lineCount = 0
-			for row in pubmedCsv:
-				lineCount += 1
-				medId = 'MED_'+'{:05d}'.format(lineCount)
-				pmid, authorNames, authorKey, title, titleMin, year, journal, \
-					journalKey, fullRow = medlineExtract(row)
-				
-				# Store the info
-				medlineDict[medId] = {}
-				medlineDict[medId]['row'] = fullRow
-				medlineDict[medId]['pmid'] = pmid
-				medlineDict[medId]['authorNames'] = authorNames
-				medlineDict[medId]['authorKey'] = authorKey
-				medlineDict[medId]['title'] = title
-				medlineDict[medId]['titleMin'] = titleMin
-				medlineDict[medId]['year'] = year
-				medlineDict[medId]['journal'] = journal
-				medlineDict[medId]['journalKey'] = journalKey
-	
-				# Record pmid matches
-				if pmid in pmidDict:
-					pmidDict[pmid] = f'{pmidDict[pmid]};{medId}'
-				else:
-					pmidDict[pmid] = medId
-	
-				# Record authorKey matches
-				if authorKey in authorKeyDict:
-					authorKeyDict[authorKey] = \
-						f'{authorKeyDict[authorKey]};{medId}'
-				else:
-					authorKeyDict[authorKey] = medId
-	
-				# Record titleMin matches
-				if titleMin in titleMinDict:
-					titleMinDict[titleMin] = f'{titleMinDict[titleMin]};{medId}'
-				else:
-					titleMinDict[titleMin] = medId
-	
-				# Record journalKey matches
-				if journalKey in journalKeyDict:
-					journalKeyDict[journalKey] = \
-						f'{journalKeyDict[journalKey]};{medId}'
-				else:
-					journalKeyDict[journalKey] = medId
-	
-				# Record global matches
-				globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, \
-					globalJournalKeyDict = globalMatcher(
-						medId, pmid, authorKey, titleMin, globalPmidDict,
-						globalAuthorKeyDict, globalTitleMinDict,
-						globalJournalKeyDict, journalKey)
-	
-		# Printout the file
-		keyList = medlineDict.keys()
-		matchCount = 0
-		matchGroup = {}
-		for medId in sorted (keyList):
-			
-			pmidHere = medlineDict[medId]['pmid']
-			authorKeyHere = medlineDict[medId]['authorKey']
-			titleMinHere = medlineDict[medId]['titleMin']
-			match, basisOut, matchGroupOut, matchCount, matchGroup = \
-				matchFinder(
-					pmidHere, authorKeyHere, titleMinHere, pmidDict,
-					authorKeyDict, titleMinDict, matchCount, medId, matchGroup)
-	
-			# Print out clean version
-			pubOut.write(
-				f'{medId}\t{pmidHere}\t{medlineDict[medId]["authorNames"]}'
-				f'\t{medlineDict[medId]["year"]}\t')
-			pubOut.write(
-				f'{authorKeyHere}\t{medlineDict[medId]["title"]}'
-				f'\t{titleMinHere}\t')
-			pubOut.write(
-				f'{medlineDict[medId]["journal"]}'
-				f'\t{medlineDict[medId]["journalKey"]}\t')
-			pubOut.write(
-				f'{match}\t{basisOut}\t{matchGroupOut}'
-				f'\t{medlineDict[medId]["row"]}\n')
+		# Process medline file
+		medlineDict = processDatabase(
+			args.medline, 'Medline', medlineExtract, globalPmidDict, globalAuthorKeyDict,
+			globalTitleMinDict, globalJournalKeyDict)
 
-	# Process embase file
 	embaseDict = {}
 	if args.embase:
-	
-		print('\n#############################################################')
-		print(' Processing an Embase file')
-		print('#############################################################\n')
-	
-		cleanFileName = fileNamer(args.embase)
-		embOut = open(cleanFileName, 'w')
-	
-		# Process the file
-		pmidDict = {}
-		authorKeyDict = {}
-		titleMinDict = {}
-		journalKeyDict = {}
-		with open(args.embase, encoding="utf8") as csvfile:
-	
-			embaseCsv = csv.DictReader(csvfile, delimiter=',', quotechar='"',)
-			embaseHeaders = list(embaseCsv.fieldnames)
-			embaseColCount = len(embaseHeaders)
-			embaseHeadersOut = '\t'.join(embaseHeaders)
-			embOut.write(
-				f'Embase_ID\tPMID\tEMID\tAuthor_Names\tYear\tAuthor_Year_Key'
-				f'\tTitle\tTitle_Key\t')
-			embOut.write(
-				f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity'
-				f'\tSimilar_group\t{embaseHeadersOut}\n')
-	
-			lineCount = 0
-			for row in embaseCsv:
-				lineCount += 1
-				embId = 'EMB_'+'{:05d}'.format(lineCount)
-				pmid, emid, authorNames, authorKey, title, titleMin, year, \
-					journal, journalKey, fullRow = embaseExtract(row)
-	
-				# Store the info
-				embaseDict[embId] = {}
-				embaseDict[embId]['row'] = fullRow
-				embaseDict[embId]['pmid'] = pmid
-				embaseDict[embId]['emid'] = emid
-				embaseDict[embId]['authorNames'] = authorNames
-				embaseDict[embId]['authorKey'] = authorKey
-				embaseDict[embId]['title'] = title
-				embaseDict[embId]['titleMin'] = titleMin
-				embaseDict[embId]['year'] = year
-				embaseDict[embId]['journal'] = journal
-				embaseDict[embId]['journalKey'] = journalKey
-	
-				# Record pmid matches
-				if pmid in pmidDict:
-					pmidDict[pmid] = f'{pmidDict[pmid]};{embId}'
-				else:
-					pmidDict[pmid] = embId
-	
-				# Record authorKey matches
-				if authorKey in authorKeyDict:
-					authorKeyDict[authorKey] = \
-						f'{authorKeyDict[authorKey]};{embId}'
-				else:
-					authorKeyDict[authorKey] = embId
-	
-				# Record titleMin matches
-				if titleMin in titleMinDict:
-					titleMinDict[titleMin] = f'{titleMinDict[titleMin]};{embId}'
-				else:
-					titleMinDict[titleMin] = embId
-	
-				# Record journalKey matches
-				if journalKey in journalKeyDict:
-					journalKeyDict[journalKey] = \
-						f'{journalKeyDict[journalKey]};{embId}'
-				else:
-					journalKeyDict[journalKey] = embId
-	
-				# Record global matches
-				globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, \
-					globalJournalKeyDict = globalMatcher(
-						embId, pmid, authorKey, titleMin, globalPmidDict,
-						globalAuthorKeyDict, globalTitleMinDict,
-						globalJournalKeyDict, journalKey)
-	
-		# Printout the file
-		keyList = embaseDict.keys()
-		matchCount = 0
-		matchGroup = {}
-		for embId in sorted (keyList):
-	
-			pmidHere = embaseDict[embId]['pmid']
-			authorKeyHere = embaseDict[embId]['authorKey']
-			titleMinHere = embaseDict[embId]['titleMin']
-			match, basisOut, matchGroupOut, matchCount, matchGroup = \
-				matchFinder(
-					pmidHere, authorKeyHere, titleMinHere, pmidDict,
-					authorKeyDict, titleMinDict, matchCount, embId, matchGroup)
-			emidHere = embaseDict[embId]['emid']
-	
-			# Print out clean version
-			embOut.write(
-				f'{embId}\t{pmidHere}\t{emidHere}'
-				f'\t{embaseDict[embId]["authorNames"]}'
-				f'\t{embaseDict[embId]["year"]}\t')
-			embOut.write(
-				f'{authorKeyHere}\t{embaseDict[embId]["title"]}'
-				f'\t{titleMinHere}\t')
-			embOut.write(
-				f'{embaseDict[embId]["journal"]}'
-				f'\t{embaseDict[embId]["journalKey"]}\t')
-			embOut.write(
-				f'{match}\t{basisOut}\t{matchGroupOut}'
-				f'\t{embaseDict[embId]["row"]}\n')
-	
-	# Process scopus file
+		# Process embase file
+		embaseDict = processDatabase(
+			args.embase, 'Embase', embaseExtract, globalPmidDict, globalAuthorKeyDict,
+			globalTitleMinDict, globalJournalKeyDict)
+
 	scopusDict = {}
 	if args.scopus:
-	
-		print('\n#############################################################')
-		print(' Processing a Scopus file')
-		print('#############################################################\n')
-	
-		cleanFileName = fileNamer(args.scopus)
-		scoOut = open(cleanFileName, 'w')
-	
-		# Process the file
-		pmidDict = {}
-		authorKeyDict = {}
-		titleMinDict = {}
-		journalKeyDict = {}
-		with open(args.scopus, encoding="utf8") as csvfile:
-	
-			scopusCsv = csv.DictReader(csvfile, delimiter=',', quotechar='"',)
-			scopusHeaders = list(scopusCsv.fieldnames)
-			scopusColCount = len(scopusHeaders)
-			scopusHeadersOut = '\t'.join(scopusHeaders)
-			scoOut.write(
-				f'Embase_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key'
-				f'\tTitle\tTitle_Key\t')
-			scoOut.write(
-				f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity'
-				f'\tSimilar_group\t{scopusHeadersOut}\n')
-	
-			lineCount = 0
-			for row in scopusCsv:
-				lineCount += 1
-				scoId = 'SCO_'+'{:05d}'.format(lineCount)
-				pmid, authorNames, authorKey, title, titleMin, year, journal, \
-					journalKey, fullRow = scopusExtract(row)
-	
-				# Store the info
-				scopusDict[scoId] = {}
-				scopusDict[scoId]['row'] = fullRow
-				scopusDict[scoId]['pmid'] = pmid
-				scopusDict[scoId]['authorNames'] = authorNames
-				scopusDict[scoId]['authorKey'] = authorKey
-				scopusDict[scoId]['title'] = title
-				scopusDict[scoId]['titleMin'] = titleMin
-				scopusDict[scoId]['year'] = year
-				scopusDict[scoId]['journal'] = journal
-				scopusDict[scoId]['journalKey'] = journalKey
-	
-				# Record pmid matches
-				if pmid in pmidDict:
-					pmidDict[pmid] = f'{pmidDict[pmid]};{scoId}'
-				else:
-					pmidDict[pmid] = scoId
-	
-				# Record authorKey matches
-				if authorKey in authorKeyDict:
-					authorKeyDict[authorKey] = \
-						f'{authorKeyDict[authorKey]};{scoId}'
-				else:
-					authorKeyDict[authorKey] = scoId
-	
-				# Record titleMin matches
-				if titleMin in titleMinDict:
-					titleMinDict[titleMin] = \
-						f'{titleMinDict[titleMin]};{scoId}'
-				else:
-					titleMinDict[titleMin] = scoId
-	
-				# Record journalKey matches
-				if journalKey in journalKeyDict:
-					journalKeyDict[journalKey] = \
-						f'{journalKeyDict[journalKey]};{scoId}'
-				else:
-					journalKeyDict[journalKey] = scoId
-	
-				# Record global matches
-				globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, \
-					globalJournalKeyDict = globalMatcher(
-						scoId, pmid, authorKey, titleMin, globalPmidDict,
-						globalAuthorKeyDict, globalTitleMinDict,
-						globalJournalKeyDict, journalKey)
-	
-		# Printout the file
-		keyList = scopusDict.keys()
-		matchCount = 0
-		matchGroup = {}
-		for scoId in sorted (keyList):
-	
-			pmidHere = scopusDict[scoId]['pmid']
-			authorKeyHere = scopusDict[scoId]['authorKey']
-			titleMinHere = scopusDict[scoId]['titleMin']
-			match, basisOut, matchGroupOut, matchCount, matchGroup = \
-				matchFinder(
-					pmidHere, authorKeyHere, titleMinHere, pmidDict,
-					authorKeyDict, titleMinDict, matchCount, scoId, matchGroup)
-			
-			# Print out clean version
-			scoOut.write(
-				f'{scoId}\t{pmidHere}\t{scopusDict[scoId]["authorNames"]}'
-				f'\t{scopusDict[scoId]["year"]}\t')
-			scoOut.write(
-				f'{authorKeyHere}\t{scopusDict[scoId]["title"]}'
-				f'\t{titleMinHere}\t')
-			scoOut.write(
-				f'{scopusDict[scoId]["journal"]}'
-				f'\t{scopusDict[scoId]["journalKey"]}\t')
-			scoOut.write(
-				f'{match}\t{basisOut}\t{matchGroupOut}'
-				f'\t{scopusDict[scoId]["row"]}\n')
+		# Process scopus file
+		scopusDict = processDatabase(
+			args.scopus, 'Scopus', scopusExtract, globalPmidDict, globalAuthorKeyDict,
+			globalTitleMinDict, globalJournalKeyDict, 'Embase_ID')
 
 	print('\n#################################################################')
 	print(' Looking for overlaps')
