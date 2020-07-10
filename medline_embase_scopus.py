@@ -2,7 +2,8 @@
 # Usage: python3 medline_embase_scopus.py -m pubmed_result.csv -e embase_noTitle.csv -s scopus_all.csv
 # Author: Stephan Sanders
 
-from enum import Enum, auto
+from collections import OrderedDict
+from enum import Enum
 import csv # CSV files
 import re # regex
 import string # string manipulation
@@ -378,7 +379,7 @@ def matchListMaker(
 			for theIdMatch in pmidDict[pmidHere].split(';'):
 				matchKeyDict[theIdMatch] = 5
 				if theId != theIdMatch:
-					basisDict['PMID'] = 5
+					basisDict[ExtractKeys.PMID] = 5
 
 	# Look for authorKey matches
 	if authorKeyHere != '.':
@@ -386,7 +387,7 @@ def matchListMaker(
 			for theIdMatch in authorKeyDict[authorKeyHere].split(';'):
 				matchKeyDict[theIdMatch] = 5
 				if theId != theIdMatch:
-					basisDict['authorKey'] = 5
+					basisDict[ExtractKeys.AUTHOR_KEY] = 5
 
 	# Look for titleMin matches
 	if titleMinHere != '.':
@@ -394,37 +395,29 @@ def matchListMaker(
 			for theIdMatch in titleMinDict[titleMinHere].split(';'):
 				matchKeyDict[theIdMatch] = 5
 				if theId != theIdMatch:
-					basisDict['titleMin'] = 5
+					basisDict[ExtractKeys.TITLE_MIN] = 5
 
 	return matchKeyDict, len(matchKeyDict), basisDict
 
 
-def getDetails(extraId, medlineDict, embaseDict, scopusDict):
+def getDetails(extraId, dbDicts):
 	"""Get PMID, authorKey and TitleMin for a given ID.
 
 	Args:
 		extraId (str): Extra ID.
-		medlineDict (dict[str, dict[str, str]]): Medline dict.
-		embaseDict (dict[str, dict[str, str]]): Embase dict.
-		scopusDict (dict[str, dict[str, str]]): SCOPUS dict.
+		dbDicts (List[dict[str, dict[str, str]]]): Sequence of database dicts.
 
 	Returns:
 		PMID, authorKey and TitleMin.
 
 	"""
 	pmidExtraId = authorKeyExtraId = titleMinExtraId = '.'
-	if extraId.startswith('MED'):
-		pmidExtraId = medlineDict[extraId]['pmid']
-		authorKeyExtraId = medlineDict[extraId]['authorKey']
-		titleMinExtraId = medlineDict[extraId]['titleMin']
-	elif extraId.startswith('EMB'):
-		pmidExtraId = embaseDict[extraId]['pmid']
-		authorKeyExtraId = embaseDict[extraId]['authorKey']
-		titleMinExtraId = embaseDict[extraId]['titleMin']
-	elif extraId.startswith('SCO'):
-		pmidExtraId = scopusDict[extraId]['pmid']
-		authorKeyExtraId = scopusDict[extraId]['authorKey']
-		titleMinExtraId = scopusDict[extraId]['titleMin']
+	for dbDict in dbDicts:
+		if extraId in dbDict:
+			pmidExtraId = dbDict[extraId][ExtractKeys.PMID]
+			authorKeyExtraId = dbDict[extraId][ExtractKeys.AUTHOR_KEY]
+			titleMinExtraId = dbDict[extraId][ExtractKeys.TITLE_MIN]
+			break
 
 	return pmidExtraId, authorKeyExtraId, titleMinExtraId
 
@@ -451,7 +444,7 @@ def findGroups(theId, matchKeyDict, basisDict, matchCountHere, matchGroup):
 				possibleMatch.append(otherId)
 		
 		match = ';'.join(possibleMatch)
-		basisOut = ';'.join(basisDict.keys())
+		basisOut = ';'.join([k.value for k in basisDict.keys()])
 
 		matchKeysAll = sorted(matchKeyDict.keys())
 		matchKeyJoinAll = ';'.join(matchKeysAll)
@@ -497,7 +490,7 @@ def matchFinder(
 				matchKey[theIdMatch] = 5
 				if theId != theIdMatch:
 					possibleMatch[theIdMatch] = 5
-					basis['PMID'] = 5
+					basis[ExtractKeys.PMID] = 5
 
 	# Look for authorKey matches
 	if authorKeyHere != '.':
@@ -506,7 +499,7 @@ def matchFinder(
 				matchKey[theIdMatch] = 5
 				if theId != theIdMatch:
 					possibleMatch[theIdMatch] = 5
-					basis['authorKey'] = 5
+					basis[ExtractKeys.AUTHOR_KEY] = 5
 
 	# Look for titleMin matches
 	if titleMinHere != '.':
@@ -515,14 +508,14 @@ def matchFinder(
 				matchKey[theIdMatch] = 5
 				if theId != theIdMatch:
 					possibleMatch[theIdMatch] = 5
-					basis['titleMin'] = 5
+					basis[ExtractKeys.TITLE_MIN] = 5
 
 	# Join matches
 	match = basisOut = matchGroupOut = '.'
 	if possibleMatch:
 		
 		match = ';'.join(possibleMatch.keys())
-		basisOut = ';'.join(basis.keys())
+		basisOut = ';'.join([k.value for k in basis.keys()])
 
 		matchKey[theId] = 5
 		matchKeysAll = sorted(matchKey.keys())
@@ -673,15 +666,13 @@ def getSubgroupNum(matchGroupOut, groupNum):
 
 
 def subGroupV2(
-		idList, medlineDict, embaseDict, scopusDict, matchGroupOut,
+		idList, dbDicts, matchGroupOut,
 		idToGroup, idToSubgroup, subgroupToId, idToDistance):
 	"""Try to work out subgroups based on Lichenstein distance.
 
 	Args:
 		idList (List[str]): List of IDs.
-		medlineDict (dict[str, dict[str, str]]): Medline dict.
-		embaseDict (dict[str, dict[str, str]]): Embase dict.
-		scopusDict (dict[str, dict[str, str]]): SCOPUS dict.
+		dbDicts (List[dict[str, dict[str, str]]]): Sequence of database dicts.
 		matchGroupOut (str): Match group for output.
 		idToGroup (dict[str, str]): Dictionary group info.
 		idToSubgroup (dict[str, str]): Dictionary mapping IDs to subgroups
@@ -702,21 +693,13 @@ def subGroupV2(
 	jDict = {}
 	for idName in idList:
 		idToGroup[idName] = idGroup
-		if idName.startswith('MED'):
-			pDict[idName] = medlineDict[idName]['pmid']
-			aDict[idName] = medlineDict[idName]['authorKey']
-			tDict[idName] = medlineDict[idName]['titleMin']
-			jDict[idName] = medlineDict[idName]['journalKey']
-		elif idName.startswith('EMB'):
-			pDict[idName] = embaseDict[idName]['pmid']
-			aDict[idName] = embaseDict[idName]['authorKey']
-			tDict[idName] = embaseDict[idName]['titleMin']
-			jDict[idName] = embaseDict[idName]['journalKey']
-		elif idName.startswith('SCO'):
-			pDict[idName] = scopusDict[idName]['pmid']
-			aDict[idName] = scopusDict[idName]['authorKey']
-			tDict[idName] = scopusDict[idName]['titleMin']
-			jDict[idName] = scopusDict[idName]['journalKey']
+		for dbDict in dbDicts:
+			if idName in dbDict:
+				pDict[idName] = dbDict[idName][ExtractKeys.PMID]
+				aDict[idName] = dbDict[idName][ExtractKeys.AUTHOR_KEY]
+				tDict[idName] = dbDict[idName][ExtractKeys.TITLE_MIN]
+				jDict[idName] = dbDict[idName][ExtractKeys.JOURNAL_KEY]
+				break
 
 	# Initialize the dictionary
 	for idName in idList:
@@ -741,7 +724,7 @@ def subGroupV2(
 				distanceOut = 9999
 				if pOne == pTwo and pOne != 'NoPMID':
 					distanceOut = 100
-				elif pOne == 'NoPMID' or pTwo == 'NoPMID' :
+				elif pOne == 'NoPMID' or pTwo == 'NoPMID':
 					distanceOut = 9999
 				else:
 					distanceOut = 0
@@ -943,6 +926,9 @@ def processDatabase(
 			``dbName``.
 
 	Returns:
+		dict[str, dict[:obj:`ExtractKeys`, str]]: Dictionary of processed
+		database entries, where keys are database IDs, and values are
+		dictionarys of extraction keys to processed strings.
 
 	"""
 	print('\n#############################################################')
@@ -972,8 +958,7 @@ def processDatabase(
 			extraction = fn_extract(row)
 
 			# Store the info
-			procDict[dbId] = {
-				k.value: v for k, v in extraction.items()}
+			procDict[dbId] = extraction
 			pmid = extraction[ExtractKeys.PMID]
 			authorKey = extraction[ExtractKeys.AUTHOR_KEY]
 			titleMin = extraction[ExtractKeys.TITLE_MIN]
@@ -1019,16 +1004,16 @@ def processDatabase(
 	headerIds = None
 	for dbId in sorted(keyList):
 
-		pmidHere = procDict[dbId]['pmid']
-		authorKeyHere = procDict[dbId]['authorKey']
-		titleMinHere = procDict[dbId]['titleMin']
+		pmidHere = procDict[dbId][ExtractKeys.PMID]
+		authorKeyHere = procDict[dbId][ExtractKeys.AUTHOR_KEY]
+		titleMinHere = procDict[dbId][ExtractKeys.TITLE_MIN]
 		match, basisOut, matchGroupOut, matchCount, matchGroup = \
 			matchFinder(
 				pmidHere, authorKeyHere, titleMinHere, pmidDict,
 				authorKeyDict, titleMinDict, matchCount, dbId, matchGroup)
 
 		# concatenate available IDs
-		ids = (dbId, pmidHere, procDict[dbId][ExtractKeys.EMID.value])
+		ids = (dbId, pmidHere, procDict[dbId][ExtractKeys.EMID])
 		idsStr = '\t'.join([i for i in ids if i is not None])
 		if headerIds is None:
 			# construct headers based on available IDs
@@ -1048,19 +1033,160 @@ def processDatabase(
 
 		# Print out clean version
 		pubOut.write(
-			f'{idsStr}\t{procDict[dbId]["authorNames"]}'
-			f'\t{procDict[dbId]["year"]}\t')
+			f'{idsStr}\t{procDict[dbId][ExtractKeys.AUTHOR_NAMES]}'
+			f'\t{procDict[dbId][ExtractKeys.YEAR]}\t')
 		pubOut.write(
-			f'{authorKeyHere}\t{procDict[dbId]["title"]}'
+			f'{authorKeyHere}\t{procDict[dbId][ExtractKeys.TITLE]}'
 			f'\t{titleMinHere}\t')
 		pubOut.write(
-			f'{procDict[dbId]["journal"]}'
-			f'\t{procDict[dbId]["journalKey"]}\t')
+			f'{procDict[dbId][ExtractKeys.JOURNAL]}'
+			f'\t{procDict[dbId][ExtractKeys.JOURNAL_KEY]}\t')
 		pubOut.write(
 			f'{match}\t{basisOut}\t{matchGroupOut}'
-			f'\t{procDict[dbId]["row"]}\n')
+			f'\t{procDict[dbId][ExtractKeys.ROW]}\n')
 
 	return procDict
+
+
+def findOverlaps(
+		allOut, procDict, dbDicts, globalPmidDict, globalAuthorKeyDict,
+		globalTitleMinDict, dbAbbr, matchGroupNew, idToGroup, idToSubgroup,
+		subgroupToId, idToDistance, globalmatchCount):
+	"""Find overlaps between processed database entries.
+
+	Args:
+		allOut:
+		procDict (dict[str, dict[:obj:`ExtractKeys`, str]]): Processed
+			database dict.
+		dbDicts (List[dict[str, dict[str, str]]]): Sequence of database dicts.
+		globalPmidDict:
+		globalAuthorKeyDict:
+		globalTitleMinDict:
+		dbAbbr (str): Database string.
+		matchGroupNew:
+		idToGroup:
+		idToSubgroup:
+		subgroupToId:
+		idToDistance:
+		globalmatchCount (int): Global match count.
+
+	Returns:
+		int: Updated global match count.
+
+	"""
+
+	for medId in procDict:
+
+		pmidHere = procDict[medId][ExtractKeys.PMID]
+		authorKeyHere = procDict[medId][ExtractKeys.AUTHOR_KEY]
+		titleMinHere = procDict[medId][ExtractKeys.TITLE_MIN]
+		journalKey = procDict[medId][ExtractKeys.JOURNAL_KEY]
+
+		if dbAbbr != 'MED' or medId not in idToSubgroup:
+			matchKeyDict = {}
+			basisDict = {}
+			matchKeyDict, matchKeyDictLenLast, basisDict = \
+				matchListMaker(
+					pmidHere, authorKeyHere, titleMinHere, globalPmidDict,
+					globalAuthorKeyDict, globalTitleMinDict, medId,
+					matchKeyDict, basisDict)
+			matchKeyDictLenNew = end = 0
+			matchKeyList = '|'.join(matchKeyDict.keys())
+
+			# Extend to all possible matches
+			while end == 0:
+				for extraId in matchKeyList.split('|'):
+					# printv(extraId)
+					pmidExtraId, authorKeyExtraId, titleMinExtraId = \
+						getDetails(extraId, dbDicts)
+					if extraId != medId:
+						matchKeyDict, matchKeyDictLenNew, basisDict = \
+							matchListMaker(
+								pmidExtraId, authorKeyExtraId,
+								titleMinExtraId, globalPmidDict,
+								globalAuthorKeyDict, globalTitleMinDict,
+								extraId, matchKeyDict, basisDict)
+				if matchKeyDictLenLast == matchKeyDictLenNew:
+					end = 1
+				else:
+					matchKeyDictLenLast = matchKeyDictLenNew
+					matchKeyList = '|'.join(matchKeyDict.keys())
+
+			# Work out groups
+			match, basisOut, matchGroupOut, globalmatchCount, \
+				matchGroupNew = findGroups(
+					medId, matchKeyDict, basisDict, globalmatchCount,
+					matchGroupNew)
+
+			# Work out subgroups
+			if match != '.':
+				idToGroup, idToSubgroup, subgroupToId, idToDistance = \
+					subGroupV2(
+						matchKeyDict, dbDicts,
+						matchGroupOut, idToGroup,
+						idToSubgroup, subgroupToId, idToDistance)
+			else:
+				idToSubgroup[medId] = '.'
+				idToGroup[medId] = '.'
+
+		# Assess subgroup status
+		matchSubGroupOut = idToSubgroup[medId]
+		matchSub = '.'
+		for idName in subgroupToId[matchSubGroupOut].split(';'):
+			if idName != medId and idName != '':
+				if matchSub == '.':
+					matchSub = f'{idName}({idToDistance[medId][idName]})'
+				else:
+					matchSub = \
+						f'{matchSub};{idName}' \
+						f'({idToDistance[medId][idName]})'
+
+		# Assess group status
+		match = '.'
+		for idName in idToGroup[medId].split(';'):
+			if idName != medId and idName != '.':
+				if match == '.':
+					match = f'{idName}({idToDistance[medId][idName]})'
+				else:
+					match = \
+						f'{match};{idName}' \
+						f'({idToDistance[medId][idName]})'
+
+		# Assess contributors
+		stats = OrderedDict.fromkeys(('MED', 'EMB', 'SCO', 'ONE'), 0)
+		papersInGroup = 0
+		for key in stats.keys():
+			# count occurrences of DB entry
+			stats[key] = matchSub.count(key)
+			if key == dbAbbr:
+				# add one for the given database
+				stats[key] += 1
+			papersInGroup += stats[key]
+
+		# determine if the sub-group match is for the given database
+		mainRecord = 'N'
+		if dbAbbr == 'EMB':
+			if 'MED' not in matchSub:
+				mainRecord = 'Y'
+		elif dbAbbr == 'SCO':
+			if 'MED' not in matchSub and 'EMB' not in matchSub:
+				mainRecord = 'Y'
+		else:
+			mainRecord = 'Y'
+
+		# Print out clean version
+		allOut.write(
+			f'{medId}\t{pmidHere}\t{procDict[medId][ExtractKeys.AUTHOR_NAMES]}'
+			f'\t{procDict[medId][ExtractKeys.YEAR]}\t')
+		allOut.write(
+			f'{authorKeyHere}\t{procDict[medId][ExtractKeys.TITLE]}'
+			f'\t{titleMinHere}\t{procDict[medId][ExtractKeys.JOURNAL]}\t{journalKey}\t')
+		statsStr = '\t'.join([str(v) for v in stats.values()])
+		allOut.write(
+			f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}'
+			f'\t{statsStr}'
+			f'\t{mainRecord}\n')
+	return globalmatchCount
 
 
 def main():
@@ -1084,7 +1210,6 @@ def main():
 	globalAuthorKeyDict = {}
 	globalTitleMinDict = {}
 	globalJournalKeyDict = {}
-	globalmatchCount = 0
 	outputFileName = 'medline_embase_scopus_combo.tsv'
 	if args.out:
 		outputFileName = args.out
@@ -1120,310 +1245,35 @@ def main():
 	print('\n#################################################################')
 	print(' Looking for overlaps')
 	print('#################################################################\n')
-	
+
+	# Look for overlaps between all the files
 	matchGroupNew = {}
-	matchCountHere = 0
 	idToGroup = {}
 	idToSubgroup = {}
 	subgroupToId = {'.': ''}
 	idToDistance = {}
-	# Look for overlaps between all the files
+	globalmatchCount = 0
+	dbDicts = (medlineDict, embaseDict, scopusDict)
 	if args.medline:
-		for medId in medlineDict:
-			# if medId == 'MED_01933':
-			# 	sys.exit('Found MED_01933')
-	
-			pmidHere = medlineDict[medId]['pmid']
-			authorKeyHere = medlineDict[medId]['authorKey']
-			titleMinHere = medlineDict[medId]['titleMin']
-			journalKey = medlineDict[medId]['journalKey']
-			
-			if medId not in idToSubgroup:
-				matchKeyDict = {}
-				basisDict = {}
-				matchKeyDict, matchKeyDictLenLast, basisDict = \
-					matchListMaker(
-						pmidHere, authorKeyHere, titleMinHere, globalPmidDict,
-						globalAuthorKeyDict, globalTitleMinDict, medId,
-						matchKeyDict, basisDict)
-				matchKeyDictLenNew = end = 0
-				matchKeyList = '|'.join(matchKeyDict.keys())
-	
-				# Extend to all possible matches
-				while end == 0:
-					for extraId in matchKeyList.split('|'):
-						# printv(extraId)
-						pmidExtraId, authorKeyExtraId, titleMinExtraId = \
-							getDetails(
-								extraId, medlineDict, embaseDict, scopusDict)
-						if extraId != medId:
-							matchKeyDict, matchKeyDictLenNew, basisDict = \
-								matchListMaker(
-									pmidExtraId, authorKeyExtraId,
-									titleMinExtraId, globalPmidDict,
-									globalAuthorKeyDict, globalTitleMinDict,
-									extraId, matchKeyDict, basisDict)
-					if matchKeyDictLenLast == matchKeyDictLenNew:
-						end = 1
-					else:
-						matchKeyDictLenLast = matchKeyDictLenNew
-						matchKeyList = '|'.join(matchKeyDict.keys())
-				
-				# Work out groups
-				match, basisOut, matchGroupOut, globalmatchCount, \
-					matchGroupNew = findGroups(
-						medId, matchKeyDict, basisDict, globalmatchCount,
-						matchGroupNew)
-				
-				# Work out subgroups
-				matchDist = '.'
-				if match != '.':
-					idToGroup, idToSubgroup, subgroupToId, idToDistance = \
-						subGroupV2(
-							matchKeyDict, medlineDict, embaseDict, scopusDict,
-							matchGroupOut, idToGroup,
-							idToSubgroup, subgroupToId, idToDistance)
-				else:
-					idToSubgroup[medId] = '.'
-					idToGroup[medId] = '.'
-	
-			# Assess subgroup status
-			matchSubGroupOut = idToSubgroup[medId]
-			matchSub = '.'
-			for idName in subgroupToId[matchSubGroupOut].split(';'):
-				if idName != medId and idName != '':
-					if matchSub == '.':
-						matchSub = f'{idName}({idToDistance[medId][idName]})'
-					else:
-						matchSub = \
-							f'{matchSub};{idName}' \
-							f'({idToDistance[medId][idName]})'
-	
-			# Assess group status
-			match = '.'
-			for idName in idToGroup[medId].split(';'):
-				if idName != medId and idName != '.':
-					if match == '.':
-						match = f'{idName}({idToDistance[medId][idName]})'
-					else:
-						match = \
-							f'{match};{idName}' \
-							f'({idToDistance[medId][idName]})'
-	
-			# Assess contributors
-			medStat = matchSub.count('MED') + 1
-			embStat = matchSub.count('EMB')
-			scoStat = matchSub.count('SCO')
-			firStat = matchSub.count('ONE')
-			papersInGroup = medStat+embStat+scoStat+firStat
-	
-			mainRecord = 'Y'
-	
-			# Print out clean version
-			allOut.write(
-				f'{medId}\t{pmidHere}\t{medlineDict[medId]["authorNames"]}'
-				f'\t{medlineDict[medId]["year"]}\t')
-			allOut.write(
-				f'{authorKeyHere}\t{medlineDict[medId]["title"]}'
-				f'\t{titleMinHere}\t{medlineDict[medId]["journal"]}\t{journalKey}\t')
-			allOut.write(
-				f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}'
-				f'\t{medStat}\t{embStat}\t{scoStat}\t{firStat}'
-				f'\t{mainRecord}\n')
-	
+		globalmatchCount = findOverlaps(
+			allOut, medlineDict, dbDicts, globalPmidDict,
+			globalAuthorKeyDict, globalTitleMinDict, 'MED',
+			matchGroupNew, idToGroup, idToSubgroup, subgroupToId, idToDistance,
+			globalmatchCount)
+
 	if args.embase:
-		for embId in embaseDict:
-			pmidHere = embaseDict[embId]['pmid']
-			authorKeyHere = embaseDict[embId]['authorKey']
-			titleMinHere = embaseDict[embId]['titleMin']
-			journalKey = embaseDict[embId]['journalKey']
-			
-			matchKeyDict = {}
-			basisDict = {}
-			matchKeyDict, matchKeyDictLenLast, basisDict = matchListMaker(
-				pmidHere, authorKeyHere, titleMinHere, globalPmidDict,
-				globalAuthorKeyDict, globalTitleMinDict, embId, matchKeyDict,
-				basisDict)
-			matchKeyDictLenNew = end = 0
-			matchKeyList = '|'.join(matchKeyDict.keys())
-	
-			# Extend to all possible matches
-			while end == 0:
-				for extraId in matchKeyList.split('|'):
-					pmidExtraId, authorKeyExtraId, titleMinExtraId = getDetails(
-						extraId, medlineDict, embaseDict, scopusDict)
-					if extraId != embId:
-						matchKeyDict, matchKeyDictLenNew, basisDict = \
-							matchListMaker(
-								pmidExtraId, authorKeyExtraId, titleMinExtraId,
-								globalPmidDict, globalAuthorKeyDict,
-								globalTitleMinDict, extraId, matchKeyDict,
-								basisDict)
-				if matchKeyDictLenLast == matchKeyDictLenNew:
-					end = 1
-				else:
-					matchKeyDictLenLast = matchKeyDictLenNew
-					matchKeyList = '|'.join(matchKeyDict.keys())
-			
-			# Work out groups
-			match, basisOut, matchGroupOut, globalmatchCount, matchGroupNew = \
-				findGroups(
-					embId, matchKeyDict, basisDict, globalmatchCount,
-					matchGroupNew)
-	
-			# Work out subgroups
-			matchDist = '.'
-			if match != '.':
-				idToGroup, idToSubgroup, subgroupToId, idToDistance = \
-					subGroupV2(
-						matchKeyDict, medlineDict, embaseDict, scopusDict,
-						matchGroupOut, idToGroup, idToSubgroup,
-						subgroupToId, idToDistance)
-			else:
-				idToSubgroup[embId] = '.'
-				idToGroup[embId] = '.'
-	
-			# Assess subgroup status
-			matchSubGroupOut = idToSubgroup[embId]
-			matchSub = '.'
-			for idName in subgroupToId[matchSubGroupOut].split(';'):
-				if idName != embId and idName != '':
-					if matchSub == '.':
-						matchSub = f'{idName}({idToDistance[embId][idName]})'
-					else:
-						matchSub = \
-							f'{matchSub};{idName}' \
-							f'({idToDistance[embId][idName]})'
-	
-			# Assess group status
-			match = '.'
-			for idName in idToGroup[embId].split(';'):
-				if idName != embId and idName != '.':
-					if match == '.':
-						match = f'{idName}({idToDistance[embId][idName]})'
-					else:
-						match = \
-							f'{match};{idName}' \
-							f'({idToDistance[embId][idName]})'
-	
-			# Assess contributors
-			medStat = matchSub.count('MED')
-			embStat = matchSub.count('EMB') + 1
-			scoStat = matchSub.count('SCO')
-			firStat = matchSub.count('ONE')
-			papersInGroup = medStat+embStat+scoStat+firStat
-	
-			mainRecord = 'N'
-			if 'MED' not in matchSub:
-				mainRecord = 'Y'
-	
-			# Print out clean version
-			allOut.write(
-				f'{embId}\t{pmidHere}\t{embaseDict[embId]["authorNames"]}'
-				f'\t{embaseDict[embId]["year"]}\t')
-			allOut.write(
-				f'{authorKeyHere}\t{embaseDict[embId]["title"]}\t{titleMinHere}'
-				f'\t{embaseDict[embId]["journal"]}\t{journalKey}\t')
-			allOut.write(
-				f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}'
-				f'\t{medStat}\t{embStat}\t{scoStat}\t{firStat}\t{mainRecord}\n')
-	
+		globalmatchCount = findOverlaps(
+			allOut, embaseDict, dbDicts, globalPmidDict,
+			globalAuthorKeyDict, globalTitleMinDict, 'EMB',
+			matchGroupNew, idToGroup, idToSubgroup, subgroupToId, idToDistance,
+			globalmatchCount)
+
 	if args.scopus:
-		for scoId in scopusDict:
-			pmidHere = scopusDict[scoId]['pmid']
-			authorKeyHere = scopusDict[scoId]['authorKey']
-			titleMinHere = scopusDict[scoId]['titleMin']
-			journalKey = scopusDict[scoId]['journalKey']
-			
-			# Find matches
-			matchKeyDict = {}
-			basisDict = {}
-			matchKeyDict, matchKeyDictLenLast, basisDict = matchListMaker(
-				pmidHere, authorKeyHere, titleMinHere, globalPmidDict,
-				globalAuthorKeyDict, globalTitleMinDict, scoId, matchKeyDict,
-				basisDict)
-			matchKeyDictLenNew = end = 0
-			matchKeyList = '|'.join(matchKeyDict.keys())
-	
-			# Extend to all possible matches
-			while end == 0:
-				for extraId in matchKeyList.split('|'):
-					pmidExtraId, authorKeyExtraId, titleMinExtraId = getDetails(
-						extraId, medlineDict, embaseDict, scopusDict)
-					if extraId != scoId:
-						matchKeyDict, matchKeyDictLenNew, basisDict = \
-							matchListMaker(
-								pmidExtraId, authorKeyExtraId, titleMinExtraId,
-								globalPmidDict, globalAuthorKeyDict,
-								globalTitleMinDict, extraId, matchKeyDict,
-								basisDict)
-				if matchKeyDictLenLast == matchKeyDictLenNew:
-					end = 1
-				else:
-					matchKeyDictLenLast = matchKeyDictLenNew
-					matchKeyList = '|'.join(matchKeyDict.keys())
-			
-			# Work out groups
-			match, basisOut, matchGroupOut, globalmatchCount, matchGroupNew = \
-				findGroups(scoId, matchKeyDict, basisDict, globalmatchCount,
-						   matchGroupNew)
-	
-			# Work out subgroups
-			matchDist = '.'
-			if match != '.':
-				idToGroup, idToSubgroup, subgroupToId, idToDistance = \
-					subGroupV2(
-						matchKeyDict, medlineDict, embaseDict, scopusDict,
-						matchGroupOut, idToGroup, idToSubgroup,
-						subgroupToId, idToDistance)
-			else:
-				idToSubgroup[scoId] = '.'
-				idToGroup[scoId] = '.'
-	
-			# Assess subgroup status
-			matchSubGroupOut = idToSubgroup[scoId]
-			matchSub = '.'
-			for idName in subgroupToId[matchSubGroupOut].split(';'):
-				if idName != scoId and idName != '':
-					if matchSub == '.':
-						matchSub = f'{idName}({idToDistance[scoId][idName]})'
-					else:
-						matchSub = \
-							f'{matchSub};{idName}' \
-							f'({idToDistance[scoId][idName]})'
-	
-			# Assess group status
-			match = '.'
-			for idName in idToGroup[scoId].split(';'):
-				if idName != scoId and idName != '.':
-					if match == '.':
-						match = f'{idName}({idToDistance[scoId][idName]})'
-					else:
-						match = \
-							f'{match};{idName}' \
-							f'({idToDistance[scoId][idName]})'
-	
-			# Assess contributors
-			medStat = matchSub.count('MED')
-			embStat = matchSub.count('EMB')
-			scoStat = matchSub.count('SCO') + 1
-			firStat = matchSub.count('ONE')
-			papersInGroup = medStat+embStat+scoStat+firStat
-	
-			mainRecord = 'N'
-			if 'MED' not in matchSub and 'EMB' not in matchSub:
-				mainRecord = 'Y'
-	
-			# Print out clean version
-			allOut.write(
-				f'{scoId}\t{pmidHere}\t{scopusDict[scoId]["authorNames"]}'
-				f'\t{scopusDict[scoId]["year"]}\t')
-			allOut.write(
-				f'{authorKeyHere}\t{scopusDict[scoId]["title"]}\t{titleMinHere}'
-				f'\t{scopusDict[scoId]["journal"]}\t{journalKey}\t')
-			allOut.write(
-				f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}'
-				f'\t{medStat}\t{embStat}\t{scoStat}\t{firStat}\t{mainRecord}\n')
+		globalmatchCount = findOverlaps(
+			allOut, scopusDict, dbDicts, globalPmidDict,
+			globalAuthorKeyDict, globalTitleMinDict, 'SCO',
+			matchGroupNew, idToGroup, idToSubgroup, subgroupToId, idToDistance,
+			globalmatchCount)
 
 
 if __name__ == "__main__":
