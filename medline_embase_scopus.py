@@ -1074,6 +1074,10 @@ def findOverlaps(
 		int: Updated global match count.
 
 	"""
+	# set up counts per database
+	dbAbbrs = [f'{tuple(d.keys())[0][:3]}' for d in dbDicts if d]
+	# TODO: temporarily include for comparison with prior output
+	dbAbbrs.append('ONE')
 
 	for medId in procDict:
 
@@ -1153,7 +1157,7 @@ def findOverlaps(
 						f'({idToDistance[medId][idName]})'
 
 		# Assess contributors
-		stats = OrderedDict.fromkeys(('MED', 'EMB', 'SCO', 'ONE'), 0)
+		stats = OrderedDict.fromkeys(dbAbbrs, 0)
 		papersInGroup = 0
 		for key in stats.keys():
 			# count occurrences of DB entry
@@ -1163,16 +1167,14 @@ def findOverlaps(
 				stats[key] += 1
 			papersInGroup += stats[key]
 
-		# determine if the sub-group match is for the given database
-		mainRecord = 'N'
-		if dbAbbr == 'EMB':
-			if 'MED' not in matchSub:
-				mainRecord = 'Y'
-		elif dbAbbr == 'SCO':
-			if 'MED' not in matchSub and 'EMB' not in matchSub:
-				mainRecord = 'Y'
-		else:
-			mainRecord = 'Y'
+		# record is "main" if the sub-group matches do not include records
+		# from any previously processed databases
+		mainRecord = 'Y'
+		for key in dbAbbrs:
+			if key == dbAbbr:
+				break
+			if key in matchSub:
+				mainRecord = 'N'
 
 		# Print out clean version
 		allOut.write(
