@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # Description: Process Embase and Pubmed search results and find matches
-# Usage: python3 medline_embase_scopus.py -m pubmed_result.csv -e embase_noTitle.csv -s scopus_all.csv
+# Usage: python3 medline_embase_scopus.py -m pubmed_result.csv \
+#   -e embase_noTitle.csv -s scopus_all.csv
 # Author: Stephan Sanders
 
 from collections import OrderedDict
@@ -15,21 +16,29 @@ import hdbscan # pip3 install hdbscan
 # How to perform the search
 
 # Pubmed
-# Need to use the old version as new one lacks the file download https://www.ncbi.nlm.nih.gov/pubmed/
-# Perform search, e.g. (PDD OR ASD OR autism*) AND (biomarker* OR marker* OR endophenotype*)
-# Click 'Send To', Select 'File', Select 'CSV'
+# Perform search, e.g. (PDD OR ASD OR autism*) AND
+# (biomarker* OR marker* OR endophenotype*)
+# Click 'Save', open 'Format', Select 'CSV'
 
 # Embase; behind a paywall
-# Emtree term - exploded: (biological marker OR endophenotype OR marker) AND (autism); 
+# Emtree term - exploded: (biological marker OR endophenotype OR marker)
+# AND (autism);
 # Language of article: english
 # Records added to Embase (including end date): 01-01-1900 to 29-02-2020
 # Select all records
-# Click 'Export', for Choose a format: select 'CSV - Fields by Column', for Choose an output: select 'Full Record', do not tick 'Include search query in export'
+# Click 'Export', for Choose a format: select 'CSV - Fields by Column',
+# for Choose an output: select 'Full Record', do not tick 'Include search
+# query in export'
 
 # Scopus
-# TITLE-ABS-KEY ( ( pdd  OR  asd  OR  autism* )  AND  ( biomarker*  OR  marker*  OR  endophenotype* ) )  AND  ( LIMIT-TO ( LANGUAGE ,  "English" ) )  AND  ( LIMIT-TO ( DOCTYPE ,  "ar" ) )  AND  ( LIMIT-TO ( SRCTYPE ,  "j" ) ) 
-# Can only download 2000 at a time in CSV format. Use "Limit to" in the filters to the left to select groups of ≤2,000, e.g. by year
-# Click arrow next to 'All' above the column headings and below 'Analyze search results'; click 'Select all'
+# TITLE-ABS-KEY ( ( pdd  OR  asd  OR  autism* )  AND
+# ( biomarker*  OR  marker*  OR  endophenotype* ) )  AND
+# ( LIMIT-TO ( LANGUAGE ,  "English" ) )  AND  ( LIMIT-TO ( DOCTYPE ,  "ar" ) )
+# AND  ( LIMIT-TO ( SRCTYPE ,  "j" ) )
+# Can only download 2000 at a time in CSV format. Use "Limit to" in the
+# filters to the left to select groups of ≤2,000, e.g. by year
+# Click arrow next to 'All' above the column headings and below
+# 'Analyze search results'; click 'Select all'
 # Click 'Export'
 # Select 'CSV Export' 
 # Add PubMed ID (you may want to add Abstract too)
@@ -1183,7 +1192,8 @@ def findOverlaps(
 			f'\t{procDict[medId][ExtractKeys.YEAR]}\t')
 		allOut.write(
 			f'{authorKeyHere}\t{procDict[medId][ExtractKeys.TITLE]}'
-			f'\t{titleMinHere}\t{procDict[medId][ExtractKeys.JOURNAL]}\t{journalKey}\t')
+			f'\t{titleMinHere}\t{procDict[medId][ExtractKeys.JOURNAL]}'
+			f'\t{journalKey}\t')
 		statsStr = '\t'.join([str(v) for v in stats.values()])
 		allOut.write(
 			f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}'
@@ -1201,7 +1211,8 @@ def main():
 	parser.add_argument('-m', '--medline', type=str, help='Medline CSV file')
 	parser.add_argument('-e', '--embase', type=str, help='Embase CSV file')
 	parser.add_argument('-s', '--scopus', type=str, help='Scopus CSV file')
-	parser.add_argument('-f', '--first', type=str, help='Initial search CSV file')
+	parser.add_argument(
+		'-f', '--first', type=str, help='Initial search CSV file')
 	parser.add_argument(
 		'-o', '--out', type=str, help='Name and location of the output file')
 	parser.add_argument(
@@ -1228,22 +1239,23 @@ def main():
 	if args.medline:
 		# Process medline file
 		medlineDict = processDatabase(
-			args.medline, 'Medline', medlineExtract, globalPmidDict, globalAuthorKeyDict,
-			globalTitleMinDict, globalJournalKeyDict)
+			args.medline, 'Medline', medlineExtract, globalPmidDict,
+			globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict)
 
 	embaseDict = {}
 	if args.embase:
 		# Process embase file
 		embaseDict = processDatabase(
-			args.embase, 'Embase', embaseExtract, globalPmidDict, globalAuthorKeyDict,
-			globalTitleMinDict, globalJournalKeyDict)
+			args.embase, 'Embase', embaseExtract, globalPmidDict,
+			globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict)
 
 	scopusDict = {}
 	if args.scopus:
 		# Process scopus file
 		scopusDict = processDatabase(
-			args.scopus, 'Scopus', scopusExtract, globalPmidDict, globalAuthorKeyDict,
-			globalTitleMinDict, globalJournalKeyDict, 'Embase_ID')
+			args.scopus, 'Scopus', scopusExtract, globalPmidDict,
+			globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict,
+			'Embase_ID')
 
 	print('\n#################################################################')
 	print(' Looking for overlaps')
