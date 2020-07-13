@@ -67,6 +67,55 @@ class DbNames(Enum):
 	SCOPUS = 'Scopus'
 
 
+class JointKeyExtractor:
+	def __init__(self, key, start='', end=''):
+		"""Extract values based on presence of keys or combinations of keys.
+
+		Args:
+			key (str, List[str]): Key or sequence of keys.
+			start (str, List[str]): Start string or sequence of strings.
+			end (str, List[str]): End string or sequence of strings
+		"""
+		self.key = key
+		self.start = start
+		self.end = end
+
+	@staticmethod
+	def parseMods(row, mods, out):
+		"""Recursively parse modifiers based on key presence.
+
+		Args:
+			row (dict[str, str]): Dictionary from a row.
+			mods (List[:obj:`JointKeyExtractor]): Sequence of extractor
+				objects or nested sequences. If a sequence, the first
+				matching key will be used. If the key is a sequence,
+				values will only be extracted if all keys are present.
+			out (List[str]): Sequence of parsed values thus far.
+
+		Returns:
+			str: Parsed modifiers.
+
+		"""
+		mod = mods[0]
+		if is_seq(mod):
+			for mod_sub in mod:
+				parsed = JointKeyExtractor.parseMods(row, [mod_sub], [])
+				if parsed:
+					out.append(parsed)
+					break
+		elif is_seq(mod.key):
+			if all([k in row and row[k] for k in mod.key]):
+				mod_sub = [
+					JointKeyExtractor(k, s, e)
+					for k, s, e in zip(mod.key, mod.start, mod.end)]
+				JointKeyExtractor.parseMods(row, mod_sub, out)
+		elif row.get(mod.key):
+			out.append(''.join((mod.start, row[mod.key], mod.end)))
+		if len(mods) <= 1:
+			return ''.join(out)
+		return JointKeyExtractor.parseMods(row, mods[1:], out)
+
+
 def authorNameProcess(name):
 	"""Remove periods and replace spaces with underscores in author names.
 
@@ -346,20 +395,15 @@ def scopusExtract(row):
 	extraction[ExtractKeys.TITLE], extraction[ExtractKeys.TITLE_MIN] \
 		= _parseTitle(row, 'Title')
 	key = 'Source title'
-	_, extraction[ExtractKeys.JOURNAL_KEY] = _parseJournal(row, key)
+	journal, extraction[ExtractKeys.JOURNAL_KEY] = _parseJournal(row, key)
 
 	# parses journal based on individual columns
-	journal = f'{row[key]} {year};'
-	if row['Volume']:
-		journal = f'{journal}{row["Volume"]}'
-	if row['Issue']:
-		journal = f'{journal}({row["Issue"]})'
-	if row['Art. No.']:
-		journal = f'{journal}:{row["Art. No."]}'
-	elif row['Page start'] and row["Page end"]:
-		journal = f'{journal}:{row["Page start"]}-{row["Page end"]}'
-	if row['DOI']:
-		journal = f'{journal}. doi: {row["DOI"]}'
+	journal = JointKeyExtractor.parseMods(row, [
+		JointKeyExtractor('Volume', ''),
+		JointKeyExtractor('Issue', '(', ')'),
+		(JointKeyExtractor('Art. No.', ':'), JointKeyExtractor(
+			('Page start', 'Page end'), (':', '-'), ('', ''))),
+		JointKeyExtractor('DOI', '. doi: ')], [f'{journal} {year};'])
 	extraction[ExtractKeys.JOURNAL] = journal
 
 	extraction[ExtractKeys.ROW] = _rowToTabDelimStr(row)
