@@ -95,6 +95,19 @@ def printv(x):
 	print("{} = {}".format(r, x))
 
 
+def is_seq(val):
+	"""Check if the value is a sequence.
+
+	Args:
+		val (Any): Value to check.
+
+	Returns:
+		bool: True if the value is a list or tuple.
+
+	"""
+	return isinstance(val, (tuple, list))
+
+
 def _parseYear(row, search):
 	"""Get the year from a row.
 
@@ -111,7 +124,7 @@ def _parseYear(row, search):
 	for key, val in search.items():
 		shortDet = row.get(key)
 		if shortDet is not None:
-			if not isinstance(val, (tuple, list)):
+			if not is_seq(val):
 				val = [val]
 			for pttn in val:
 				yearMatch = re.search(pttn, shortDet)
