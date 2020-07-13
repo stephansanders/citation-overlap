@@ -60,6 +60,13 @@ class ExtractKeys(Enum):
 	JOURNAL_KEY = 'journalKey'
 
 
+class DbNames(Enum):
+	"""Names of databases with extractors."""
+	MEDLINE = 'Medline'
+	EMBASE = 'Embase'
+	SCOPUS = 'Scopus'
+
+
 def authorNameProcess(name):
 	"""Remove periods and replace spaces with underscores in author names.
 
@@ -1248,27 +1255,21 @@ def main():
 		f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tGroup'
 		f'\tPapers_In_Group\tMedline\tEmbase\tScopus\tFirst\tMainRecord\n')
 
-	medlineDict = {}
-	if args.medline:
-		# Process medline file
-		medlineDict = processDatabase(
-			args.medline, 'Medline', medlineExtract, globalPmidDict,
-			globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict)
-
-	embaseDict = {}
-	if args.embase:
-		# Process embase file
-		embaseDict = processDatabase(
-			args.embase, 'Embase', embaseExtract, globalPmidDict,
-			globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict)
-
-	scopusDict = {}
-	if args.scopus:
-		# Process scopus file
-		scopusDict = processDatabase(
-			args.scopus, 'Scopus', scopusExtract, globalPmidDict,
-			globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict,
-			'Embase_ID')
+	# extract CSVs into dictionaries based on database type
+	dbs = OrderedDict((
+		(DbNames.MEDLINE, (args.medline, medlineExtract)),
+		(DbNames.EMBASE, (args.embase, embaseExtract)),
+		(DbNames.SCOPUS, (args.scopus, scopusExtract)),
+	))
+	dbsParsed = {}
+	for dbEnum, dbParams in dbs.items():
+		if dbParams[0]:
+			# extract CSV into dict for the given database
+			headerMainId = 'Embase_ID' if dbEnum is DbNames.SCOPUS else None
+			dbsParsed[dbEnum] = processDatabase(
+				dbParams[0], dbEnum.value, dbParams[1], globalPmidDict,
+				globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict,
+				headerMainId)
 
 	print('\n#################################################################')
 	print(' Looking for overlaps')
@@ -1281,25 +1282,12 @@ def main():
 	subgroupToId = {'.': ''}
 	idToDistance = {}
 	globalmatchCount = 0
-	dbDicts = (medlineDict, embaseDict, scopusDict)
-	if args.medline:
-		globalmatchCount = findOverlaps(
-			allOut, medlineDict, dbDicts, globalPmidDict,
-			globalAuthorKeyDict, globalTitleMinDict, 'MED',
-			matchGroupNew, idToGroup, idToSubgroup, subgroupToId, idToDistance,
-			globalmatchCount)
 
-	if args.embase:
+	for dbEnum, dbDict in dbsParsed.items():
+		# find overlaps among parsed dicts
 		globalmatchCount = findOverlaps(
-			allOut, embaseDict, dbDicts, globalPmidDict,
-			globalAuthorKeyDict, globalTitleMinDict, 'EMB',
-			matchGroupNew, idToGroup, idToSubgroup, subgroupToId, idToDistance,
-			globalmatchCount)
-
-	if args.scopus:
-		globalmatchCount = findOverlaps(
-			allOut, scopusDict, dbDicts, globalPmidDict,
-			globalAuthorKeyDict, globalTitleMinDict, 'SCO',
+			allOut, dbDict, dbsParsed.values(), globalPmidDict,
+			globalAuthorKeyDict, globalTitleMinDict, dbEnum.value[:3].upper(),
 			matchGroupNew, idToGroup, idToSubgroup, subgroupToId, idToDistance,
 			globalmatchCount)
 
