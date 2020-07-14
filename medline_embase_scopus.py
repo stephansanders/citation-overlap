@@ -82,6 +82,10 @@ class JointKeyExtractor:
 		self.start = start
 		self.end = end
 
+	def __repr__(self):
+		"""Get string representation."""
+		return f'key={self.key}, start={self.start}, end={self.end}'
+
 	@staticmethod
 	def parseMods(row, mods, out):
 		"""Recursively parse modifiers based on key presence.
