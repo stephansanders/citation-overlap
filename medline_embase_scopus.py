@@ -58,6 +58,7 @@ class ExtractKeys(Enum):
 	YEAR = 'year'
 	JOURNAL = 'journal'
 	JOURNAL_KEY = 'journalKey'
+	EXTRAS = 'extras'
 
 
 class DbNames(Enum):
@@ -317,11 +318,21 @@ def _rowToTabDelimStr(row):
 	return '\t'.join(rowOut)
 
 
-def medlineExtract(row):
-	"""Extract key info from Medline.
+def dbExtract(row, extractor):
+	"""Extract key info from a database row.
+
+	The ``extractor`` specifies the arguments to the corresponding parsers
+	for the given key. The :obj:`ExtractKeys.EXTRAS` key specifies a
+	sequence of further modifications to the given key values. Each
+	modification is a squence of the key to modify, a sequence of
+	`JointKeyExtractors` that will be parsed from the given database row,
+	and another sequence of extractors that will be parsed from the current
+	extraction output.
 
 	Args:
 		row (dict[str, str]): Dictionary from a row.
+		extractor (dict[:obj:`ExtractKeys`, Any): Extractor specification
+			dict.
 
 	Returns:
 		dict[:obj:`ExtractKeys`, str]: Dictionary of extracted elements,
@@ -329,84 +340,26 @@ def medlineExtract(row):
 
 	"""
 	extraction = dict.fromkeys(ExtractKeys, None)
-	year = _parseYear(row, {'ShortDetails': (r'.\s+(\d{4})$', r'(\d{4})$')})
+	year = _parseYear(row, extractor[ExtractKeys.YEAR])
 	extraction[ExtractKeys.YEAR] = year
 	extraction[ExtractKeys.AUTHOR_NAMES], extraction[ExtractKeys.AUTHOR_KEY] \
-		= _parseAuthorNames(row, 'Description', year)
-	extraction[ExtractKeys.PMID] = _parseID(row, 'Identifiers', r'PMID:(\d+)')
+		= _parseAuthorNames(row, extractor[ExtractKeys.AUTHOR_KEY], year)
+	extraction[ExtractKeys.PMID] = _parseID(row, *extractor[ExtractKeys.PMID])
+	if ExtractKeys.EMID in extractor:
+		extraction[ExtractKeys.EMID] = _parseID(
+			row, *extractor[ExtractKeys.EMID])
 	extraction[ExtractKeys.TITLE], extraction[ExtractKeys.TITLE_MIN] \
-		= _parseTitle(row, 'Title')
+		= _parseTitle(row, extractor[ExtractKeys.TITLE])
 	extraction[ExtractKeys.JOURNAL], extraction[ExtractKeys.JOURNAL_KEY] \
-		= _parseJournal(row, 'Details')
+		= _parseJournal(row, extractor[ExtractKeys.JOURNAL])
 	extraction[ExtractKeys.ROW] = _rowToTabDelimStr(row)
-	return extraction
 
+	if ExtractKeys.EXTRAS in extractor:
+		for extra in extractor[ExtractKeys.EXTRAS]:
+			extraction[extra[0]] = JointKeyExtractor.parseMods(
+				row, extra[1], [JointKeyExtractor.parseMods(
+					extraction, extra[2], [])])
 
-def embaseExtract(row):
-	"""Extract key info from Embase.
-
-	Args:
-		row (dict[str, str]): Dictionary from a row.
-
-	Returns:
-		dict[:obj:`ExtractKeys`, str]: Dictionary of extracted elements,
-		with values defaulting to None if not found.
-
-	"""
-	extraction = dict.fromkeys(ExtractKeys, None)
-	year = _parseYear(row, {
-		'Date of Publication': r'(19\d{2}|20\d{2})',
-		'Source': r'(19\d{2}|20\d{2})',
-	})
-	extraction[ExtractKeys.YEAR] = year
-	extraction[ExtractKeys.AUTHOR_NAMES], extraction[ExtractKeys.AUTHOR_KEY] \
-		= _parseAuthorNames(row, 'Author Names', year)
-	extraction[ExtractKeys.PMID] = _parseID(
-		row, 'Medline PMID', r'(\d+)', warn=False)
-	# get additional ID
-	extraction[ExtractKeys.EMID] = _parseID(
-		row, 'Embase Accession ID', r'(\d+)', warn=False, default='NoEMID')
-	extraction[ExtractKeys.TITLE], extraction[ExtractKeys.TITLE_MIN] \
-		= _parseTitle(row, '\ufeff"Title"')
-	extraction[ExtractKeys.JOURNAL], extraction[ExtractKeys.JOURNAL_KEY] \
-		= _parseJournal(row, 'Source')
-	extraction[ExtractKeys.ROW] = _rowToTabDelimStr(row)
-	return extraction
-
-
-def scopusExtract(row):
-	"""Extract key info from Medline.
-
-	Args:
-		row (dict[str, str]): Dictionary from a row.
-
-	Returns:
-		dict[:obj:`ExtractKeys`, str]: Dictionary of extracted elements,
-		with values defaulting to None if not found.
-
-	"""
-	extraction = dict.fromkeys(ExtractKeys, None)
-	year = _parseYear(row, {'Year': r'(19\d{2}|20\d{2})'})
-	extraction[ExtractKeys.YEAR] = year
-	extraction[ExtractKeys.AUTHOR_NAMES], extraction[ExtractKeys.AUTHOR_KEY] \
-		= _parseAuthorNames(row, '\ufeffAuthors', year)
-	extraction[ExtractKeys.PMID] = _parseID(
-		row, 'PubMed ID', r'(\d+)', warn=False)
-	extraction[ExtractKeys.TITLE], extraction[ExtractKeys.TITLE_MIN] \
-		= _parseTitle(row, 'Title')
-	key = 'Source title'
-	journal, extraction[ExtractKeys.JOURNAL_KEY] = _parseJournal(row, key)
-
-	# parses journal based on individual columns
-	journal = JointKeyExtractor.parseMods(row, [
-		JointKeyExtractor('Volume', ''),
-		JointKeyExtractor('Issue', '(', ')'),
-		(JointKeyExtractor('Art. No.', ':'), JointKeyExtractor(
-			('Page start', 'Page end'), (':', '-'), ('', ''))),
-		JointKeyExtractor('DOI', '. doi: ')], [f'{journal} {year};'])
-	extraction[ExtractKeys.JOURNAL] = journal
-
-	extraction[ExtractKeys.ROW] = _rowToTabDelimStr(row)
 	return extraction
 
 
@@ -982,15 +935,14 @@ def globalMatcher(
 
 
 def processDatabase(
-		path, dbName, fn_extract, globalPmidDict, globalAuthorKeyDict,
+		path, dbName, extractor, globalPmidDict, globalAuthorKeyDict,
 		globalTitleMinDict, globalJournalKeyDict, headerMainId=None):
 	"""Process a database TSV file.
 
 	Args:
 		path (str): Path to the TSV file.
 		dbName (str): Database name.
-		fn_extract (func): Extraction function for parsing the database
-			contents.
+		extractor (func): Extractor specification dict.
 		globalPmidDict (dict): Global dictionary of PubMed IDs.
 		globalAuthorKeyDict (dict): Global dictionary of author keys.
 		globalTitleMinDict (dict): Global dictionary of short titles.
@@ -1029,7 +981,7 @@ def processDatabase(
 		for row in pubmedCsv:
 			lineCount += 1
 			dbId = f'{dbName[:3].upper()}_{lineCount:05d}'
-			extraction = fn_extract(row)
+			extraction = dbExtract(row, extractor)
 
 			# Store the info
 			procDict[dbId] = extraction
@@ -1300,10 +1252,47 @@ def main():
 		f'\tPapers_In_Group\tMedline\tEmbase\tScopus\tFirst\tMainRecord\n')
 
 	# extract CSVs into dictionaries based on database type
+	medlineExtractor = {
+		ExtractKeys.YEAR: {'ShortDetails': (r'.\s+(\d{4})$', r'(\d{4})$')},
+		ExtractKeys.AUTHOR_KEY: 'Description',
+		ExtractKeys.PMID: ('Identifiers', r'PMID:(\d+)'),
+		ExtractKeys.TITLE: 'Title',
+		ExtractKeys.JOURNAL: 'Details',
+	}
+	embaseExtractor = {
+		ExtractKeys.YEAR: {
+			'Date of Publication': r'(19\d{2}|20\d{2})',
+			'Source': r'(19\d{2}|20\d{2})',
+		},
+		ExtractKeys.AUTHOR_KEY: 'Author Names',
+		ExtractKeys.PMID: ('Medline PMID', r'(\d+)', False),
+		ExtractKeys.EMID: ('Embase Accession ID', r'(\d+)', False, 'NoEMID'),
+		ExtractKeys.TITLE: '\ufeff"Title"',
+		ExtractKeys.JOURNAL: 'Source',
+	}
+	scopusExtractor = {
+		ExtractKeys.YEAR: {'Year': r'(19\d{2}|20\d{2})'},
+		ExtractKeys.AUTHOR_KEY: '\ufeffAuthors',
+		ExtractKeys.PMID: ('PubMed ID', r'(\d+)', False),
+		ExtractKeys.TITLE: 'Title',
+		ExtractKeys.JOURNAL: 'Source title',
+		ExtractKeys.EXTRAS: [(
+			ExtractKeys.JOURNAL, [
+				JointKeyExtractor('Volume', ''),
+				JointKeyExtractor('Issue', '(', ')'),
+				(JointKeyExtractor('Art. No.', ':'), JointKeyExtractor(
+					('Page start', 'Page end'), (':', '-'), ('', ''))),
+				JointKeyExtractor('DOI', '. doi: ')
+			], [
+				JointKeyExtractor(ExtractKeys.JOURNAL),
+				JointKeyExtractor(ExtractKeys.YEAR, ' ', ';'),
+			]
+		)]
+	}
 	dbs = OrderedDict((
-		(DbNames.MEDLINE, (args.medline, medlineExtract)),
-		(DbNames.EMBASE, (args.embase, embaseExtract)),
-		(DbNames.SCOPUS, (args.scopus, scopusExtract)),
+		(DbNames.MEDLINE, (args.medline, medlineExtractor)),
+		(DbNames.EMBASE, (args.embase, embaseExtractor)),
+		(DbNames.SCOPUS, (args.scopus, scopusExtractor)),
 	))
 	dbsParsed = {}
 	for dbEnum, dbParams in dbs.items():
