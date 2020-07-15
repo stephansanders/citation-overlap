@@ -13,6 +13,7 @@ import string # string manipulation
 import argparse # arguments parser
 import jellyfish # string comparison # pip3 install jellyfish
 import hdbscan # pip3 install hdbscan
+import pandas as pd
 import yaml
 
 # How to perform the search
@@ -1330,6 +1331,9 @@ def main(paths, outputFileName=None):
 		outputFileName (str): Name of output file; defaults to None to use
 			a default name.
 
+	Returns:
+		:obj:`pd.DataFrame`: Combined citations with overlaps as a data frame.
+
 	"""
 	# Key variables and output file
 	globalPmidDict = {}
@@ -1390,6 +1394,10 @@ def main(paths, outputFileName=None):
 			globalAuthorKeyDict, globalTitleMinDict, dbEnum.value[:3].upper(),
 			matchGroupNew, idToGroup, idToSubgroup, subgroupToId, idToDistance,
 			globalmatchCount)
+
+	df = pd.read_csv(outputFileName, sep='\t')
+	print(df)
+	return df
 
 
 if __name__ == "__main__":
