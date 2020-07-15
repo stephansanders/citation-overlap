@@ -4,9 +4,10 @@
 #   -e embase_noTitle.csv -s scopus_all.csv
 # Author: Stephan Sanders
 
-from collections import OrderedDict
 from enum import Enum
+from collections import OrderedDict
 import csv # CSV files
+import os
 import re # regex
 import string # string manipulation
 import argparse # arguments parser
@@ -45,6 +46,10 @@ import yaml
 # Add PubMed ID (you may want to add Abstract too)
 # Click Export
 # Combine the lists in a text editor or Google Sheet, not in Excel
+
+
+#: str: Path to extractor specification folder.
+PATH_EXTRACTORS = 'extractors'
 
 
 class ExtractKeys(Enum):
@@ -1288,8 +1293,8 @@ def findOverlaps(
 	return globalmatchCount
 
 
-def main():
-	"""Parse arguments and find citation overlaps."""
+def parseArgs():
+	"""Parse arguments."""
 	parser = argparse.ArgumentParser(
 		description=
 		'Find overlaps between articles downloaded from Medline, Embase, '
@@ -1304,15 +1309,35 @@ def main():
 	parser.add_argument(
 		'-d', '--debug', action='store_true', help='Debugging function')
 	args = parser.parse_args()
-	
+	paths = []
+	outputFileName = None
+	if args.medline:
+		paths.append(args.medline)
+	if args.embase:
+		paths.append(args.embase)
+	if args.scopus:
+		paths.append(args.scopus)
+	if args.out:
+		outputFileName = args.out
+	return paths, outputFileName
+
+
+def main(paths, outputFileName=None):
+	"""Extract database TSV files into dicts and find citation overlaps.
+
+	Args:
+		paths (List[str]): Input file paths.
+		outputFileName (str): Name of output file; defaults to None to use
+			a default name.
+
+	"""
 	# Key variables and output file
 	globalPmidDict = {}
 	globalAuthorKeyDict = {}
 	globalTitleMinDict = {}
 	globalJournalKeyDict = {}
-	outputFileName = 'medline_embase_scopus_combo.tsv'
-	if args.out:
-		outputFileName = args.out
+	if not outputFileName:
+		outputFileName = 'medline_embase_scopus_combo.tsv'
 	allOut = open(outputFileName, 'w')
 	allOut.write(
 		f'Paper_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle'
@@ -1321,17 +1346,21 @@ def main():
 		f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tGroup'
 		f'\tPapers_In_Group\tMedline\tEmbase\tScopus\tFirst\tMainRecord\n')
 
-	# load extractors for each database
-	medlineExtractor = load_yaml('extractors/medline.yaml', _YAML_MATCHER)[0]
-	embaseExtractor = load_yaml('extractors/embase.yaml', _YAML_MATCHER)[0]
-	scopusExtractor = load_yaml('extractors/scopus.yaml', _YAML_MATCHER)[0]
+	# # load extractors for the given database based on first part of basename
+	dbs = OrderedDict()
+	for dbName in DbNames:
+		for path in paths:
+			pathDbSplit = os.path.basename(path).split('_')
+			if pathDbSplit:
+				pathDb = pathDbSplit[0].lower()
+				if pathDb == dbName.value.lower():
+					extractorPath = os.path.join(
+						PATH_EXTRACTORS, f'{pathDb}.yaml')
+					if os.path.exists(extractorPath):
+						dbs[dbName] = (
+							path, load_yaml(extractorPath, _YAML_MATCHER)[0])
+						break
 
-	# extract CSVs into dictionaries based on database type
-	dbs = OrderedDict((
-		(DbNames.MEDLINE, (args.medline, medlineExtractor)),
-		(DbNames.EMBASE, (args.embase, embaseExtractor)),
-		(DbNames.SCOPUS, (args.scopus, scopusExtractor)),
-	))
 	dbsParsed = {}
 	for dbEnum, dbParams in dbs.items():
 		if dbParams[0]:
@@ -1364,4 +1393,4 @@ def main():
 
 
 if __name__ == "__main__":
-	main()
+	main(*parseArgs())
