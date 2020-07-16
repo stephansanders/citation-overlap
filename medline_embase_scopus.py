@@ -12,7 +12,7 @@ import re # regex
 import string # string manipulation
 import argparse # arguments parser
 import jellyfish # string comparison # pip3 install jellyfish
-import hdbscan # pip3 install hdbscan
+#import hdbscan # pip3 install hdbscan
 import pandas as pd
 import yaml
 
