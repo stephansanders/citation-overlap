@@ -128,6 +128,111 @@ class JointKeyExtractor:
 		return JointKeyExtractor.parseMods(row, mods[1:], out)
 
 
+class DbExtractor:
+	"""Perform database extractions and store results for overlap detection.
+
+	Attributes:
+		globalPmidDict (dict): PubMed ID dict.
+		globalAuthorKeyDict (dict): Author keys dict.
+		globalTitleMinDict (dict): Short title dict.
+		globalJournalKeyDict (dict): Journal key dict.
+		dbsParsed (OrderedDict): Dictionary of parsed database files.
+
+	"""
+	def __init__(self):
+		self.globalPmidDict = {}
+		self.globalAuthorKeyDict = {}
+		self.globalTitleMinDict = {}
+		self.globalJournalKeyDict = {}
+		self.dbsParsed = OrderedDict()
+
+		self._dbNamesLower = [e.value.lower() for e in DbNames]
+
+	def extractDb(self, path, extractorPath=None):
+		"""Extract a database file into a parsed format.
+
+		Args:
+			path (str): Path to database TSV file.
+			extractorPath (str): Path to extractor specification YAML file;
+				defaults to None to detect the appropriate extractor
+				based on the corresponding name at the start of the filename
+				in ``path``.
+
+		Returns:
+			:obj:`pd.DataFrame`, str: The extracted database as a data frame
+			and the name of database, or None for each if an appropriate
+			extractor was not found.
+
+		"""
+		df = None
+		pathDbSplit = os.path.basename(path).split('_')
+		pathDb = pathDbSplit[0].lower()
+		dbName = pathDb
+		dbEnum = None
+		if pathDb in self._dbNamesLower:
+			# format the database name according to the Enum value
+			dbEnum = DbNames[pathDb.upper()]
+			dbName = dbEnum.value
+		if not extractorPath:
+			# identify an extractor for the given database based on first
+			# part of the path filename
+			extractorPath = os.path.join(PATH_EXTRACTORS, f'{pathDb}.yaml')
+		if os.path.exists(extractorPath):
+			# extract database file contents
+			extractor = load_yaml(extractorPath, _YAML_MATCHER)[0]
+			headerMainId = 'Embase_ID' if dbEnum is DbNames.SCOPUS else None
+			self.dbsParsed[dbName], df = processDatabase(
+				path, dbName, extractor, self.globalPmidDict,
+				self.globalAuthorKeyDict, self.globalTitleMinDict,
+				self.globalJournalKeyDict, headerMainId)
+		return df, dbName
+
+	def combineOverlaps(self, outputFileName=None):
+		"""Combine overlaps from extracted databases in :attr:`dbParsed`.
+
+		Args:
+			outputFileName (str): Output path; defaults to None to use
+				a default name.
+
+		Returns:
+			:obj:`pd.DataFrame`: Data frame of overlaps.
+
+		"""
+		if not outputFileName:
+			outputFileName = 'medline_embase_scopus_combo.tsv'
+		allOut = open(outputFileName, 'w')
+		allOut.write(
+			f'Paper_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle'
+			f'\tTitle_Key\t')
+		allOut.write(
+			f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tGroup'
+			f'\tPapers_In_Group\tMedline\tEmbase\tScopus\tFirst\tMainRecord\n')
+
+		print('\n#################################################################')
+		print(' Looking for overlaps')
+		print('#################################################################\n')
+
+		# Look for overlaps between all the files
+		matchGroupNew = {}
+		idToGroup = {}
+		idToSubgroup = {}
+		subgroupToId = {'.': ''}
+		idToDistance = {}
+		globalmatchCount = 0
+
+		for dbName, dbDict in self.dbsParsed.items():
+			# find overlaps among parsed dicts
+			globalmatchCount = findOverlaps(
+				allOut, dbDict, self.dbsParsed.values(), self.globalPmidDict,
+				self.globalAuthorKeyDict, self.globalTitleMinDict,
+				dbName[:3].upper(), matchGroupNew, idToGroup,
+				idToSubgroup, subgroupToId, idToDistance, globalmatchCount)
+
+		df = pd.read_csv(outputFileName, sep='\t')
+		print(df)
+		return df
+
+
 _YAML_MATCHER = {
 	'ExtractKeys': ExtractKeys,
 	'JointKeyExtractor': JointKeyExtractor,
@@ -1028,9 +1133,10 @@ def processDatabase(
 			``dbName``.
 
 	Returns:
-		dict[str, dict[:obj:`ExtractKeys`, str]]: Dictionary of processed
-		database entries, where keys are database IDs, and values are
-		dictionarys of extraction keys to processed strings.
+		dict[str, dict[:obj:`ExtractKeys`, str]], :obj:`pd.DataFrame`:
+		Dictionary of processed database entries, where keys are database
+		IDs, and values are dictionarys of extraction keys to processed
+		strings. Data Frame of the processed file.
 
 	"""
 	print('\n#############################################################')
@@ -1147,7 +1253,7 @@ def processDatabase(
 			f'{match}\t{basisOut}\t{matchGroupOut}'
 			f'\t{procDict[dbId][ExtractKeys.ROW]}\n')
 
-	return procDict
+	return procDict, pd.read_csv(cleanFileName, sep='\t')
 
 
 def findOverlaps(
@@ -1335,69 +1441,11 @@ def main(paths, outputFileName=None):
 		:obj:`pd.DataFrame`: Combined citations with overlaps as a data frame.
 
 	"""
-	# Key variables and output file
-	globalPmidDict = {}
-	globalAuthorKeyDict = {}
-	globalTitleMinDict = {}
-	globalJournalKeyDict = {}
-	if not outputFileName:
-		outputFileName = 'medline_embase_scopus_combo.tsv'
-	allOut = open(outputFileName, 'w')
-	allOut.write(
-		f'Paper_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle'
-		f'\tTitle_Key\t')
-	allOut.write(
-		f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tGroup'
-		f'\tPapers_In_Group\tMedline\tEmbase\tScopus\tFirst\tMainRecord\n')
-
-	# # load extractors for the given database based on first part of basename
-	dbs = OrderedDict()
-	for dbName in DbNames:
-		for path in paths:
-			pathDbSplit = os.path.basename(path).split('_')
-			if pathDbSplit:
-				pathDb = pathDbSplit[0].lower()
-				if pathDb == dbName.value.lower():
-					extractorPath = os.path.join(
-						PATH_EXTRACTORS, f'{pathDb}.yaml')
-					if os.path.exists(extractorPath):
-						dbs[dbName] = (
-							path, load_yaml(extractorPath, _YAML_MATCHER)[0])
-						break
-
-	dbsParsed = {}
-	for dbEnum, dbParams in dbs.items():
-		if dbParams[0]:
-			# extract CSV into dict for the given database
-			headerMainId = 'Embase_ID' if dbEnum is DbNames.SCOPUS else None
-			dbsParsed[dbEnum] = processDatabase(
-				dbParams[0], dbEnum.value, dbParams[1], globalPmidDict,
-				globalAuthorKeyDict, globalTitleMinDict, globalJournalKeyDict,
-				headerMainId)
-
-	print('\n#################################################################')
-	print(' Looking for overlaps')
-	print('#################################################################\n')
-
-	# Look for overlaps between all the files
-	matchGroupNew = {}
-	idToGroup = {}
-	idToSubgroup = {}
-	subgroupToId = {'.': ''}
-	idToDistance = {}
-	globalmatchCount = 0
-
-	for dbEnum, dbDict in dbsParsed.items():
-		# find overlaps among parsed dicts
-		globalmatchCount = findOverlaps(
-			allOut, dbDict, dbsParsed.values(), globalPmidDict,
-			globalAuthorKeyDict, globalTitleMinDict, dbEnum.value[:3].upper(),
-			matchGroupNew, idToGroup, idToSubgroup, subgroupToId, idToDistance,
-			globalmatchCount)
-
-	df = pd.read_csv(outputFileName, sep='\t')
-	print(df)
-	return df
+	# assume that paths are ordered by arg parser
+	dbExtractor = DbExtractor()
+	for path in paths:
+		dbExtractor.extractDb(path)
+	return dbExtractor.combineOverlaps(outputFileName)
 
 
 if __name__ == "__main__":
