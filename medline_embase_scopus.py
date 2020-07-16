@@ -7,6 +7,7 @@
 from enum import Enum
 from collections import OrderedDict
 import csv # CSV files
+import glob
 import os
 import re # regex
 import string # string manipulation
@@ -174,10 +175,16 @@ class DbExtractor:
 			dbEnum = DbNames[pathDb.upper()]
 			dbName = dbEnum.value
 		if not extractorPath:
-			# identify an extractor for the given database based on first
+			# identify a YAML extractor for the given database based on first
 			# part of the path filename
-			extractorPath = os.path.join(PATH_EXTRACTORS, f'{pathDb}.yml')
-		if os.path.exists(extractorPath):
+			extractorPaths = glob.glob(os.path.join(
+				PATH_EXTRACTORS, f'{pathDb}.*'))
+			for extrPath in extractorPaths:
+				if os.path.splitext(extrPath.lower())[1] in ('.yml', '.yaml'):
+					# case-insensitive match for YAML extension
+					extractorPath = extrPath
+					break
+		if extractorPath and os.path.exists(extractorPath):
 			# extract database file contents
 			extractor = load_yaml(extractorPath, _YAML_MATCHER)[0]
 			headerMainId = 'Embase_ID' if dbEnum is DbNames.SCOPUS else None
