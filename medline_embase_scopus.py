@@ -176,7 +176,7 @@ class DbExtractor:
 		if not extractorPath:
 			# identify an extractor for the given database based on first
 			# part of the path filename
-			extractorPath = os.path.join(PATH_EXTRACTORS, f'{pathDb}.yaml')
+			extractorPath = os.path.join(PATH_EXTRACTORS, f'{pathDb}.yml')
 		if os.path.exists(extractorPath):
 			# extract database file contents
 			extractor = load_yaml(extractorPath, _YAML_MATCHER)[0]
