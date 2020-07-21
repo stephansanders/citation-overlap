@@ -1,17 +1,17 @@
 # SCOPUS extractor
 
 ExtractKeys.YEAR:
-  'Year': '(19\d{2}|20\d{2})'
+  Year: '(19\d{2}|20\d{2})'
 ExtractKeys.AUTHOR_KEY: "\ufeffAuthors"
-ExtractKeys.PMID: ['PubMed ID', '(\d+)', False]
-ExtractKeys.TITLE: 'Title'
-ExtractKeys.JOURNAL: 'Source title'
+ExtractKeys.PMID: [PubMed ID, '(\d+)', False]
+ExtractKeys.TITLE: Title
+ExtractKeys.JOURNAL: Source title
 ExtractKeys.EXTRAS:
 - - ExtractKeys.JOURNAL
-  - - JointKeyExtractor: ['Volume', '']
-    - JointKeyExtractor: ['Issue', '(', ')']
-    - - JointKeyExtractor: ['Art. No.', ':']
-      - JointKeyExtractor: [['Page start', 'Page end'], [':', '-'], ['', '']]
-    - JointKeyExtractor: ['DOI', '. doi: ']
+  - - JointKeyExtractor: [Volume, '']
+    - JointKeyExtractor: [Issue, '(', ')']
+    - - JointKeyExtractor: [Art. No., ':']
+      - JointKeyExtractor: [[Page start, Page end], [':', '-'], ['', '']]
+    - JointKeyExtractor: [DOI, '. doi: ']
   - - JointKeyExtractor: [ExtractKeys.JOURNAL]
     - JointKeyExtractor: [ExtractKeys.YEAR, ' ', ';']

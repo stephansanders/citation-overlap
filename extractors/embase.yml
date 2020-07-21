@@ -1,10 +1,10 @@
 # Embase extractor
 
 ExtractKeys.YEAR:
-  'Date of Publication': '(19\d{2}|20\d{2})'
-  'Source': '(19\d{2}|20\d{2})'
-ExtractKeys.AUTHOR_KEY: 'Author Names'
-ExtractKeys.PMID: ['Medline PMID', '(\d+)', False]
-ExtractKeys.EMID: ['Embase Accession ID', '(\d+)', False, 'NoEMID']
+  Date of Publication: '(19\d{2}|20\d{2})'
+  Source: '(19\d{2}|20\d{2})'
+ExtractKeys.AUTHOR_KEY: Author Names
+ExtractKeys.PMID: [Medline PMID, '(\d+)', False]
+ExtractKeys.EMID: [Embase Accession ID, '(\d+)', False, NoEMID]
 ExtractKeys.TITLE: "\ufeff\"Title\""
-ExtractKeys.JOURNAL: 'Source'
+ExtractKeys.JOURNAL: Source

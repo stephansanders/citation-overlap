@@ -1,0 +1,8 @@
+# Medline extractor
+
+ExtractKeys.YEAR:
+  'ShortDetails': ['.\s+(\d{4})$', '(\d{4})$']
+ExtractKeys.AUTHOR_KEY: 'Description'
+ExtractKeys.PMID: ['Identifiers', 'PMID:(\d+)']
+ExtractKeys.TITLE: 'Title'
+ExtractKeys.JOURNAL: 'Details'
