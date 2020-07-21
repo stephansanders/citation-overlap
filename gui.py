@@ -140,6 +140,8 @@ class CiteOverlapGUI(HasTraits):
 	def findOverlaps(self):
 		"""Find overlaps."""
 		df = self.dbExtractor.combineOverlaps()
+		if df is None:
+			return
 		self._overlapsAdapter.columns = df.columns.values.tolist()
 		self._overlaps = df.to_numpy()
 
