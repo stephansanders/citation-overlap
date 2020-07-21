@@ -1,8 +1,7 @@
-# Medline extractor
+# Medline extractor for PubMed format introduced in 2020
 
-ExtractKeys.YEAR:
-  'ShortDetails': ['.\s+(\d{4})$', '(\d{4})$']
-ExtractKeys.AUTHOR_KEY: 'Description'
-ExtractKeys.PMID: ['Identifiers', 'PMID:(\d+)']
-ExtractKeys.TITLE: 'Title'
-ExtractKeys.JOURNAL: 'Details'
+ExtractKeys.YEAR: Publication Year
+ExtractKeys.AUTHOR_KEY: Authors
+ExtractKeys.PMID: PMID
+ExtractKeys.TITLE: Title
+ExtractKeys.JOURNAL: Journal/Book
