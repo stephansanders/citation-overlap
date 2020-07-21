@@ -186,12 +186,15 @@ class DbExtractor:
 					break
 		if extractorPath and os.path.exists(extractorPath):
 			# extract database file contents
+			print(f'Loading extractor from "{extractorPath}" for "{path}"')
 			extractor = load_yaml(extractorPath, _YAML_MATCHER)[0]
 			headerMainId = 'Embase_ID' if dbEnum is DbNames.SCOPUS else None
 			self.dbsParsed[dbName], df = processDatabase(
 				path, dbName, extractor, self.globalPmidDict,
 				self.globalAuthorKeyDict, self.globalTitleMinDict,
 				self.globalJournalKeyDict, headerMainId)
+		else:
+			print(f'Could not find extrator for "{path}"')
 		return df, dbName
 
 	def combineOverlaps(self, outputFileName=None):
