@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 
+from enum import Enum, auto
 import glob
 import os
 
 from PyQt5 import QtWidgets, QtCore
 # adjust density for HiDPI screens
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
-from traits.api import HasTraits, on_trait_change, Str, Button, \
+from traits.api import HasTraits, on_trait_change, Int, Str, Button, \
 	Array, push_exception_handler, File, List, Instance
-from traitsui.api import View, Item, HGroup, VGroup, Tabbed, \
+from traitsui.api import Handler, View, Item, HGroup, VGroup, Tabbed, \
 	HSplit, TabularEditor, FileEditor, CheckListEditor
 from traitsui.tabular_adapter import TabularAdapter
 
@@ -32,8 +33,35 @@ class TableArrayAdapter(TabularAdapter):
 	columns = []
 
 
+class SheetTabs(Enum):
+	MEDLINE = auto()
+	EMBASE = auto()
+	SCOPUS = auto()
+	OVERLAPS = auto()
+
+
+class CiteOverlapHandler(Handler):
+	"""Custom handler for Citation Overlap GUI object events."""
+
+	def object_select_sheet_tab_changed(self, info):
+		"""Select the given tab specified by
+		:attr:`CiteOverlapGUI.select_controls_tab`.
+
+		Args:
+			info (UIInfo): TraitsUI UI info.
+
+		"""
+		# find the tab widget QTabWidget and subtract one from Enum-based
+		# index (1-based)
+		tab_widgets = info.ui.control.findChildren(QtWidgets.QTabWidget)
+		tab_widgets[0].setCurrentIndex(info.object.select_sheet_tab - 1)
+
+
 class CiteOverlapGUI(HasTraits):
 	"""GUI for Citation Overlap."""
+
+	# select the given tag based on SheetTabs enum value
+	select_sheet_tab = Int(-1)
 
 	# Control panel controls
 	_csvPath = File()
@@ -106,6 +134,7 @@ class CiteOverlapGUI(HasTraits):
 		height=800,
 		title='Citation Overlap',
 		resizable=True,
+		handler=CiteOverlapHandler(),
 	)
 
 	def __init__(self):
@@ -131,14 +160,17 @@ class CiteOverlapGUI(HasTraits):
 				medline_embase_scopus.DbNames.MEDLINE.value.lower()):
 			self._medlineAdapter.columns = df.columns.values.tolist()
 			self._medline = df.to_numpy()
+			self.select_sheet_tab = SheetTabs.MEDLINE.value
 		elif dbName.startswith(
 				medline_embase_scopus.DbNames.EMBASE.value.lower()):
 			self._embaseAdapter.columns = df.columns.values.tolist()
 			self._embase = df.to_numpy()
+			self.select_sheet_tab = SheetTabs.EMBASE.value
 		elif dbName.startswith(
 				medline_embase_scopus.DbNames.SCOPUS.value.lower()):
 			self._scopusAdapter.columns = df.columns.values.tolist()
 			self._scopus = df.to_numpy()
+			self.select_sheet_tab = SheetTabs.SCOPUS.value
 
 	@on_trait_change('_overlapBtn')
 	def findOverlaps(self):
@@ -148,6 +180,7 @@ class CiteOverlapGUI(HasTraits):
 			return
 		self._overlapsAdapter.columns = df.columns.values.tolist()
 		self._overlaps = df.to_numpy()
+		self.select_sheet_tab = SheetTabs.OVERLAPS.value
 
 
 if __name__ == "__main__":
