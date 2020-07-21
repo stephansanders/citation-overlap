@@ -126,13 +126,17 @@ class CiteOverlapGUI(HasTraits):
 		if extractorPath is self._DEFAULT_EXTRACTOR:
 			extractorPath = None
 		df, dbName = self.dbExtractor.extractDb(self._csvPath, extractorPath)
-		if dbName == medline_embase_scopus.DbNames.MEDLINE.value:
+		dbName = dbName.lower()
+		if dbName.startswith(
+				medline_embase_scopus.DbNames.MEDLINE.value.lower()):
 			self._medlineAdapter.columns = df.columns.values.tolist()
 			self._medline = df.to_numpy()
-		elif dbName == medline_embase_scopus.DbNames.EMBASE.value:
+		elif dbName.startswith(
+				medline_embase_scopus.DbNames.EMBASE.value.lower()):
 			self._embaseAdapter.columns = df.columns.values.tolist()
 			self._embase = df.to_numpy()
-		elif dbName == medline_embase_scopus.DbNames.SCOPUS.value:
+		elif dbName.startswith(
+				medline_embase_scopus.DbNames.SCOPUS.value.lower()):
 			self._scopusAdapter.columns = df.columns.values.tolist()
 			self._scopus = df.to_numpy()
 
