@@ -205,9 +205,12 @@ class DbExtractor:
 				a default name.
 
 		Returns:
-			:obj:`pd.DataFrame`: Data frame of overlaps.
+			:obj:`pd.DataFrame`: Data frame of overlaps, or None if
+			:attr:`dbsParsed` is empty.
 
 		"""
+		if not self.dbsParsed:
+			return None
 		if not outputFileName:
 			outputFileName = 'medline_embase_scopus_combo.tsv'
 		allOut = open(outputFileName, 'w')
