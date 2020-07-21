@@ -356,11 +356,13 @@ def is_seq(val):
 	return isinstance(val, (tuple, list))
 
 
-def _parseYear(row, search):
+def _parseYear(row, key=None, search=None):
 	"""Get the year from a row.
 
 	Args:
 		row (dict[str, str]): Dictionary from a row.
+		key (str): Column name; defaults to None. If given, ``search`` will
+			be ignored.
 		search (dict[str, Any]): Dictionary of ``row`` columns
 			to regex search patterns to extract the year. Each pattern may
 			be a sequence of patterns to try for the given column.
@@ -369,15 +371,22 @@ def _parseYear(row, search):
 		str: Year.
 
 	"""
-	for key, val in search.items():
-		shortDet = row.get(key)
-		if shortDet is not None:
-			if not is_seq(val):
-				val = [val]
-			for pttn in val:
-				yearMatch = re.search(pttn, shortDet)
-				if yearMatch:
-					return yearMatch.group(1)
+	if key:
+		# extract by simple key
+		year = row.get(key)
+		if year is not None:
+			return year
+	else:
+		for col, val in search.items():
+			# check for search pattern within column
+			shortDet = row.get(col)
+			if shortDet is not None:
+				if not is_seq(val):
+					val = [val]
+				for pttn in val:
+					yearMatch = re.search(pttn, shortDet)
+					if yearMatch:
+						return yearMatch.group(1)
 	return 'NoYear'
 
 
@@ -416,13 +425,13 @@ def _parseAuthorNames(row, key, year):
 	return authorNames, authorKey
 
 
-def _parseID(row, key, search, warn=True, default='NoPMID'):
+def _parseID(row, key, search=None, warn=True, default='NoPMID'):
 	"""Get the ID.
 
 	Args:
 		row (dict[str, str]): Dictionary from a row.
 		key (str): Author names key in ``row``.
-		search (str): Regex search pattern.
+		search (str): Regex search pattern; defaults to None.
 		warn (bool): True to warn if ID is not found; defaults to True.
 		default (str): Default ID if ID is not found.
 
@@ -432,11 +441,15 @@ def _parseID(row, key, search, warn=True, default='NoPMID'):
 	"""
 	pmidField = row.get(key)
 	if pmidField is not None:
-		pmidMatch = re.search(search, pmidField)
-		if pmidMatch:
-			return pmidMatch.group(1)
+		if search:
+			# search for regex
+			pmidMatch = re.search(search, pmidField)
+			if pmidMatch:
+				return pmidMatch.group(1)
+		else:
+			return pmidField
 	if warn:
-		print('ERR: No ID found:' + pmidField)
+		print(f'ERR: No ID found: {pmidField}')
 	return default
 
 
@@ -531,21 +544,45 @@ def dbExtract(row, extractor):
 
 	"""
 	extraction = dict.fromkeys(ExtractKeys, None)
-	year = _parseYear(row, extractor[ExtractKeys.YEAR])
+
+	# parse year
+	year_arg = extractor[ExtractKeys.YEAR]
+	if isinstance(year_arg, dict):
+		year = _parseYear(row, search=year_arg)
+	else:
+		year = _parseYear(row, year_arg)
 	extraction[ExtractKeys.YEAR] = year
+
+	# parse authors
 	extraction[ExtractKeys.AUTHOR_NAMES], extraction[ExtractKeys.AUTHOR_KEY] \
 		= _parseAuthorNames(row, extractor[ExtractKeys.AUTHOR_KEY], year)
-	extraction[ExtractKeys.PMID] = _parseID(row, *extractor[ExtractKeys.PMID])
+
+	# parse PubMed ID
+	pmid_arg = extractor[ExtractKeys.PMID]
+	if is_seq(pmid_arg):
+		pmid = _parseID(row, *pmid_arg)
+	else:
+		pmid = _parseID(row, pmid_arg)
+	extraction[ExtractKeys.PMID] = pmid
+
 	if ExtractKeys.EMID in extractor:
+		# parse EMID
 		extraction[ExtractKeys.EMID] = _parseID(
 			row, *extractor[ExtractKeys.EMID])
+
+	# parse title
 	extraction[ExtractKeys.TITLE], extraction[ExtractKeys.TITLE_MIN] \
 		= _parseTitle(row, extractor[ExtractKeys.TITLE])
+
+	# parse journal
 	extraction[ExtractKeys.JOURNAL], extraction[ExtractKeys.JOURNAL_KEY] \
 		= _parseJournal(row, extractor[ExtractKeys.JOURNAL])
+
+	# store tab-delimited version of row
 	extraction[ExtractKeys.ROW] = _rowToTabDelimStr(row)
 
 	if ExtractKeys.EXTRAS in extractor:
+		# apply additional extractors
 		for extra in extractor[ExtractKeys.EXTRAS]:
 			extraction[extra[0]] = JointKeyExtractor.parseMods(
 				row, extra[1], [JointKeyExtractor.parseMods(
