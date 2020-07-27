@@ -64,7 +64,9 @@ class CiteOverlapGUI(HasTraits):
 	select_sheet_tab = Int(-1)
 
 	# Control panel controls
-	_csvPath = File()
+	_medlinePath = File()
+	_embasePath = File()
+	_scopusPath = File()
 	_extractor = Str
 	_extractorNames = Instance(TraitsList)
 	_DEFAULT_EXTRACTOR = 'Auto'
@@ -101,17 +103,20 @@ class CiteOverlapGUI(HasTraits):
 
 	# controls panel
 	_controlsPanel = VGroup(
-		HGroup(
+		VGroup(
 			Item(
-				'_csvPath', label='File', style='simple',
+				'_medlinePath', label='Pubmed/Medline file', style='simple',
 				editor=FileEditor(allow_dir=False)),
-		),
-		HGroup(
+			Item(
+				'_embasePath', label='Embase file', style='simple',
+				editor=FileEditor(allow_dir=False)),
+			Item(
+				'_scopusPath', label='SCOPUS file', style='simple',
+				editor=FileEditor(allow_dir=False)),
 			Item(
 				"_extractor", label="Extractor",
 				editor=CheckListEditor(
 					name="object._extractorNames.selections")),
-			Item('_importBtn', show_label=False),
 		),
 		Item('_overlapBtn', show_label=False),
 	)
@@ -148,29 +153,45 @@ class CiteOverlapGUI(HasTraits):
 
 		self.dbExtractor = medline_embase_scopus.DbExtractor()
 
-	@on_trait_change('_importBtn')
-	def importFile(self):
+	@on_trait_change('_medlinePath')
+	def importMedline(self):
+		"""Import a Medline file and display in table."""
+		df = self._importFile(
+			self._medlinePath, medline_embase_scopus.DefaultExtractors.MEDLINE)
+		self._medlineAdapter.columns = df.columns.values.tolist()
+		self._medline = df.to_numpy()
+		self.select_sheet_tab = SheetTabs.MEDLINE.value
+
+	@on_trait_change('_embasePath')
+	def importEmbase(self):
+		"""Import an Embase file and display in table."""
+		df = self._importFile(
+			self._embasePath, medline_embase_scopus.DefaultExtractors.EMBASE)
+		self._embaseAdapter.columns = df.columns.values.tolist()
+		self._embase = df.to_numpy()
+		self.select_sheet_tab = SheetTabs.EMBASE.value
+
+	@on_trait_change('_scopusPath')
+	def importScopus(self):
+		"""Import a SCOPUS file and display in table."""
+		df = self._importFile(
+			self._scopusPath, medline_embase_scopus.DefaultExtractors.SCOPUS)
+		self._scopusAdapter.columns = df.columns.values.tolist()
+		self._scopus = df.to_numpy()
+		self.select_sheet_tab = SheetTabs.SCOPUS.value
+
+	def _importFile(self, path, extractor):
 		"""Import a database file."""
 		extractorPath = self._extractor
 		if extractorPath is self._DEFAULT_EXTRACTOR:
-			extractorPath = None
-		df, dbName = self.dbExtractor.extractDb(self._csvPath, extractorPath)
-		dbName = dbName.lower()
-		if dbName.startswith(
-				medline_embase_scopus.DbNames.MEDLINE.value.lower()):
-			self._medlineAdapter.columns = df.columns.values.tolist()
-			self._medline = df.to_numpy()
-			self.select_sheet_tab = SheetTabs.MEDLINE.value
-		elif dbName.startswith(
-				medline_embase_scopus.DbNames.EMBASE.value.lower()):
-			self._embaseAdapter.columns = df.columns.values.tolist()
-			self._embase = df.to_numpy()
-			self.select_sheet_tab = SheetTabs.EMBASE.value
-		elif dbName.startswith(
-				medline_embase_scopus.DbNames.SCOPUS.value.lower()):
-			self._scopusAdapter.columns = df.columns.values.tolist()
-			self._scopus = df.to_numpy()
-			self.select_sheet_tab = SheetTabs.SCOPUS.value
+			if extractor:
+				extractorPath = os.path.join(
+					medline_embase_scopus.PATH_EXTRACTORS,
+					extractor.value)
+			else:
+				extractorPath = None
+		df, dbName = self.dbExtractor.extractDb(path, extractorPath)
+		return df
 
 	@on_trait_change('_overlapBtn')
 	def findOverlaps(self):
