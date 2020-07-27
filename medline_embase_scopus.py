@@ -54,6 +54,13 @@ import yaml
 PATH_EXTRACTORS = 'extractors'
 
 
+class DefaultExtractors(Enum):
+	"""Default extractor filenames Enumeration."""
+	MEDLINE = 'medline2.yml'
+	EMBASE = 'embase.yml'
+	SCOPUS = 'scopus.yml'
+
+
 class ExtractKeys(Enum):
 	"""Database extraction output keys."""
 	ROW = 'row'
