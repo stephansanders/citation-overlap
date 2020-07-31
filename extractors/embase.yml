@@ -6,5 +6,5 @@ ExtractKeys.YEAR:
 ExtractKeys.AUTHOR_KEY: Author Names
 ExtractKeys.PMID: [Medline PMID, '(\d+)', False]
 ExtractKeys.EMID: [Embase Accession ID, '(\d+)', False, NoEMID]
-ExtractKeys.TITLE: "\ufeff\"Title\""
+ExtractKeys.TITLE: Title
 ExtractKeys.JOURNAL: Source

@@ -196,8 +196,10 @@ class DbExtractor:
 			print(f'Loading extractor from "{extractorPath}" for "{path}"')
 			extractor = load_yaml(extractorPath, _YAML_MATCHER)[0]
 			headerMainId = 'Embase_ID' if dbEnum is DbNames.SCOPUS else None
+			df = pd.read_csv(
+				path, index_col=False, dtype=str, na_filter=False)
 			self.dbsParsed[dbName], df = processDatabase(
-				path, dbName, extractor, self.globalPmidDict,
+				path, df, dbName, extractor, self.globalPmidDict,
 				self.globalAuthorKeyDict, self.globalTitleMinDict,
 				self.globalJournalKeyDict, headerMainId)
 		else:
@@ -1173,12 +1175,13 @@ def globalMatcher(
 
 
 def processDatabase(
-		path, dbName, extractor, globalPmidDict, globalAuthorKeyDict,
+		path, df, dbName, extractor, globalPmidDict, globalAuthorKeyDict,
 		globalTitleMinDict, globalJournalKeyDict, headerMainId=None):
-	"""Process a database TSV file.
+	"""Process a database records.
 
 	Args:
-		path (str): Path to the TSV file.
+		path (str): Path from which to construct the output path.
+		df (:obj:`pd.DataFrame`): Data frame to process.
 		dbName (str): Database name.
 		extractor (func): Extractor specification dict.
 		globalPmidDict (dict): Global dictionary of PubMed IDs.
@@ -1212,55 +1215,50 @@ def processDatabase(
 	authorKeyDict = {}
 	titleMinDict = {}
 	journalKeyDict = {}
-	with open(path, encoding="utf8") as csvfile:
+	for lineCount, row in enumerate(df.to_dict(orient="records")):
+		# shift line count by 1 for 1-based indexing
+		dbId = f'{dbName[:3].upper()}_{lineCount+1:05d}'
+		extraction = dbExtract(row, extractor)
 
-		pubmedCsv = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+		# Store the info
+		procDict[dbId] = extraction
+		pmid = extraction[ExtractKeys.PMID]
+		authorKey = extraction[ExtractKeys.AUTHOR_KEY]
+		titleMin = extraction[ExtractKeys.TITLE_MIN]
+		journalKey = extraction[ExtractKeys.JOURNAL_KEY]
 
-		lineCount = 0
-		for row in pubmedCsv:
-			lineCount += 1
-			dbId = f'{dbName[:3].upper()}_{lineCount:05d}'
-			extraction = dbExtract(row, extractor)
+		# Record pmid matches
+		if pmid in pmidDict:
+			pmidDict[pmid] = f'{pmidDict[pmid]};{dbId}'
+		else:
+			pmidDict[pmid] = dbId
 
-			# Store the info
-			procDict[dbId] = extraction
-			pmid = extraction[ExtractKeys.PMID]
-			authorKey = extraction[ExtractKeys.AUTHOR_KEY]
-			titleMin = extraction[ExtractKeys.TITLE_MIN]
-			journalKey = extraction[ExtractKeys.JOURNAL_KEY]
+		# Record authorKey matches
+		if authorKey in authorKeyDict:
+			authorKeyDict[authorKey] = \
+				f'{authorKeyDict[authorKey]};{dbId}'
+		else:
+			authorKeyDict[authorKey] = dbId
 
-			# Record pmid matches
-			if pmid in pmidDict:
-				pmidDict[pmid] = f'{pmidDict[pmid]};{dbId}'
-			else:
-				pmidDict[pmid] = dbId
+		# Record titleMin matches
+		if titleMin in titleMinDict:
+			titleMinDict[titleMin] = f'{titleMinDict[titleMin]};{dbId}'
+		else:
+			titleMinDict[titleMin] = dbId
 
-			# Record authorKey matches
-			if authorKey in authorKeyDict:
-				authorKeyDict[authorKey] = \
-					f'{authorKeyDict[authorKey]};{dbId}'
-			else:
-				authorKeyDict[authorKey] = dbId
+		# Record journalKey matches
+		if journalKey in journalKeyDict:
+			journalKeyDict[journalKey] = \
+				f'{journalKeyDict[journalKey]};{dbId}'
+		else:
+			journalKeyDict[journalKey] = dbId
 
-			# Record titleMin matches
-			if titleMin in titleMinDict:
-				titleMinDict[titleMin] = f'{titleMinDict[titleMin]};{dbId}'
-			else:
-				titleMinDict[titleMin] = dbId
-
-			# Record journalKey matches
-			if journalKey in journalKeyDict:
-				journalKeyDict[journalKey] = \
-					f'{journalKeyDict[journalKey]};{dbId}'
-			else:
-				journalKeyDict[journalKey] = dbId
-
-			# Record global matches
-			globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, \
-				globalJournalKeyDict = globalMatcher(
-					dbId, pmid, authorKey, titleMin, globalPmidDict,
-					globalAuthorKeyDict, globalTitleMinDict,
-					globalJournalKeyDict, journalKey)
+		# Record global matches
+		globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, \
+			globalJournalKeyDict = globalMatcher(
+				dbId, pmid, authorKey, titleMin, globalPmidDict,
+				globalAuthorKeyDict, globalTitleMinDict,
+				globalJournalKeyDict, journalKey)
 
 	# Printout the file
 	keyList = procDict.keys()
@@ -1282,7 +1280,7 @@ def processDatabase(
 		idsStr = '\t'.join([i for i in ids if i is not None])
 		if headerIds is None:
 			# construct headers based on available IDs
-			pubmedHeaders = list(pubmedCsv.fieldnames)
+			pubmedHeaders = list(df.columns.values)
 			pubmedHeadersOut = '\t'.join(pubmedHeaders)
 			headerIdKeys = [
 				f'{headerMainId}', ExtractKeys.PMID.value.upper(),
