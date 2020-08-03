@@ -252,6 +252,7 @@ class DbExtractor:
 				dbName[:3].upper(), matchGroupNew, idToGroup,
 				idToSubgroup, subgroupToId, idToDistance, globalmatchCount)
 
+		allOut.flush()
 		df = pd.read_csv(outputFileName, sep='\t')
 		print(df)
 		return df
@@ -1310,6 +1311,7 @@ def processDatabase(
 			f'{match}\t{basisOut}\t{matchGroupOut}'
 			f'\t{procDict[dbId][ExtractKeys.ROW]}\n')
 
+	pubOut.flush()
 	return procDict, pd.read_csv(cleanFileName, sep='\t')
 
 
