@@ -156,7 +156,7 @@ class DbExtractor:
 
 		self._dbNamesLower = [e.value.lower() for e in DbNames]
 
-	def extractDb(self, path, extractorPath=None):
+	def extractDb(self, path, extractorPath=None, df=None):
 		"""Extract a database file into a parsed format.
 
 		Args:
@@ -165,6 +165,8 @@ class DbExtractor:
 				defaults to None to detect the appropriate extractor
 				based on the corresponding name at the start of the filename
 				in ``path``.
+			df (:obj:`pd.DataFrame`): Data frame of database records to
+				extract; defaults to None to read from ``path``.
 
 		Returns:
 			:obj:`pd.DataFrame`, str: The extracted database as a data frame
@@ -172,7 +174,6 @@ class DbExtractor:
 			extractor was not found.
 
 		"""
-		df = None
 		pathDbSplit = os.path.basename(path).split('_')
 		pathDb = pathDbSplit[0].lower()
 		dbName = pathDb
@@ -196,8 +197,9 @@ class DbExtractor:
 			print(f'Loading extractor from "{extractorPath}" for "{path}"')
 			extractor = load_yaml(extractorPath, _YAML_MATCHER)[0]
 			headerMainId = 'Embase_ID' if dbEnum is DbNames.SCOPUS else None
-			df = pd.read_csv(
-				path, index_col=False, dtype=str, na_filter=False)
+			if df is None:
+				df = pd.read_csv(
+					path, index_col=False, dtype=str, na_filter=False)
 			self.dbsParsed[dbName], df = processDatabase(
 				path, df, dbName, extractor, self.globalPmidDict,
 				self.globalAuthorKeyDict, self.globalTitleMinDict,
