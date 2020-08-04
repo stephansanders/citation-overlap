@@ -225,7 +225,7 @@ class DbExtractor:
 		if not self.dbsParsed:
 			return None
 		if not outputFileName:
-			outputFileName = 'medline_embase_scopus_combo.tsv'
+			outputFileName = 'medline_embase_scopus_combo.csv'
 		records = []
 
 		print('\n#################################################################')
@@ -250,9 +250,7 @@ class DbExtractor:
 
 		df = pd.DataFrame.from_records(records)
 		# TODO: for backward compatibility to use minimal quoting
-		df.to_csv(
-			outputFileName, sep='\t', index=False, quoting=csv.QUOTE_NONE,
-			quotechar="",  escapechar="\\")
+		df.to_csv(outputFileName, index=False)
 		print(df)
 		return df
 
@@ -1295,7 +1293,7 @@ def processDatabase(
 		records.append(record)
 
 	df_out = pd.DataFrame.from_records(records)
-	df_out.to_csv(f'{os.path.splitext(path)[0]}_clean.tsv', sep='\t')
+	df_out.to_csv(f'{os.path.splitext(path)[0]}_clean.csv')
 	return procDict, df_out
 
 
