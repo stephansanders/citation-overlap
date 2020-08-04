@@ -30,7 +30,14 @@ class TraitsList(HasTraits):
 
 class TableArrayAdapter(TabularAdapter):
 	"""Table adapter for generic table output."""
+	#: int: max column width
+	MAX_WIDTH = 200
 	columns = []
+
+	def get_width(self, object, trait, column):
+		"""Specify column widths."""
+		# cannot access public attributes for some reason
+		return self._widths[column]
 
 
 class SheetTabs(Enum):
@@ -153,13 +160,35 @@ class CiteOverlapGUI(HasTraits):
 
 		self.dbExtractor = medline_embase_scopus.DbExtractor()
 
+	@staticmethod
+	def _df_to_cols(df):
+		"""Convert a data frame to table columns with widths adjusted to
+		fit the column width up to a given max amount.
+
+		Args:
+			df (:obj:`pd.DataFrame`): Data frame to enter into table.
+
+		Returns:
+			dict[int, int], List[str], :obj:`np.ndarray`: Dictionary of
+			column indices to width, list of column strings, and data frame
+			as a Numpy arry.
+
+		"""
+		cols = df.columns.values.tolist()
+		widths = {
+			i: min((
+				max(df[c].astype(str).str.len()) * 15,
+				TableArrayAdapter.MAX_WIDTH)) for i, c in enumerate(cols)
+		}
+		return widths, cols, df.to_numpy()
+
 	@on_trait_change('_medlinePath')
 	def importMedline(self):
 		"""Import a Medline file and display in table."""
 		df = self._importFile(
 			self._medlinePath, medline_embase_scopus.DefaultExtractors.MEDLINE)
-		self._medlineAdapter.columns = df.columns.values.tolist()
-		self._medline = df.to_numpy()
+		self._medlineAdapter._widths, self._medlineAdapter.columns, \
+			self._medline = self._df_to_cols(df)
 		self.select_sheet_tab = SheetTabs.MEDLINE.value
 
 	@on_trait_change('_embasePath')
@@ -167,8 +196,8 @@ class CiteOverlapGUI(HasTraits):
 		"""Import an Embase file and display in table."""
 		df = self._importFile(
 			self._embasePath, medline_embase_scopus.DefaultExtractors.EMBASE)
-		self._embaseAdapter.columns = df.columns.values.tolist()
-		self._embase = df.to_numpy()
+		self._embaseAdapter._widths, self._embaseAdapter.columns, \
+			self._embase = self._df_to_cols(df)
 		self.select_sheet_tab = SheetTabs.EMBASE.value
 
 	@on_trait_change('_scopusPath')
@@ -176,8 +205,8 @@ class CiteOverlapGUI(HasTraits):
 		"""Import a SCOPUS file and display in table."""
 		df = self._importFile(
 			self._scopusPath, medline_embase_scopus.DefaultExtractors.SCOPUS)
-		self._scopusAdapter.columns = df.columns.values.tolist()
-		self._scopus = df.to_numpy()
+		self._scopusAdapter._widths, self._scopusAdapter.columns, \
+			self._scopus = self._df_to_cols(df)
 		self.select_sheet_tab = SheetTabs.SCOPUS.value
 
 	def _importFile(self, path, extractor):
@@ -199,8 +228,8 @@ class CiteOverlapGUI(HasTraits):
 		df = self.dbExtractor.combineOverlaps()
 		if df is None:
 			return
-		self._overlapsAdapter.columns = df.columns.values.tolist()
-		self._overlaps = df.to_numpy()
+		self._overlapsAdapter._widths, self._overlapsAdapter.columns, \
+			self._overlaps = self._df_to_cols(df)
 		self.select_sheet_tab = SheetTabs.OVERLAPS.value
 
 
