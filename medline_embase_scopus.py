@@ -520,14 +520,15 @@ def _parseJournal(row, key):
 	return journal, journalKey
 
 
-def _rowToTabDelimStr(row):
-	"""Convert a row to a tab-delimited string
+def _rowToList(row):
+	"""Convert a row to a list, skipping the last field unless it contains
+	brackets of empty single quotes.
 
 	Args:
 		row (dict[str, str]): Dictionary from a row.
 
 	Returns:
-		str: Tab-delimited string.
+		List[str]: Row without last element unless it meets the above criteria.
 
 	"""
 	rowOut = []
@@ -536,7 +537,7 @@ def _rowToTabDelimStr(row):
 		if i < rowLen - 1 or str(row[field]) == '["]':
 			# skip last field if not brackets of empty quotes
 			rowOut.append(str(row[field]))
-	return '\t'.join(rowOut)
+	return rowOut
 
 
 def dbExtract(row, extractor):
@@ -596,7 +597,7 @@ def dbExtract(row, extractor):
 		= _parseJournal(row, extractor[ExtractKeys.JOURNAL])
 
 	# store tab-delimited version of row
-	extraction[ExtractKeys.ROW] = _rowToTabDelimStr(row)
+	extraction[ExtractKeys.ROW] = _rowToList(row)
 
 	if ExtractKeys.EXTRAS in extractor:
 		# apply additional extractors
@@ -1195,8 +1196,6 @@ def processDatabase(
 		headerMainId = f'{dbName}_ID'
 
 	procDict = {}
-	cleanFileName = f'{os.path.splitext(path)[0]}_clean.tsv'
-	pubOut = open(cleanFileName, 'w')
 
 	# Process the file
 	pmidDict = {}
@@ -1253,6 +1252,8 @@ def processDatabase(
 	matchCount = 0
 	matchGroup = {}
 	headerIds = None
+	pubmedHeaders = None
+	records = []
 	for dbId in sorted(keyList):
 
 		pmidHere = procDict[dbId][ExtractKeys.PMID]
@@ -1265,39 +1266,40 @@ def processDatabase(
 
 		# concatenate available IDs
 		ids = (dbId, pmidHere, procDict[dbId][ExtractKeys.EMID])
-		idsStr = '\t'.join([i for i in ids if i is not None])
+		idsStr = [i for i in ids if i is not None]
 		if headerIds is None:
 			# construct headers based on available IDs
 			pubmedHeaders = list(df.columns.values)
-			pubmedHeadersOut = '\t'.join(pubmedHeaders)
 			headerIdKeys = [
 				f'{headerMainId}', ExtractKeys.PMID.value.upper(),
 				ExtractKeys.EMID.value.upper()]
-			headerIds = '\t'.join(
-				[h for h, i in zip(headerIdKeys, ids) if i is not None])
-			pubOut.write(
-				f'{headerIds}\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle'
-				f'\tTitle_Key\t')
-			pubOut.write(
-				f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity'
-				f'\tSimilar_group\t{pubmedHeadersOut}\n')
+			headerIds = [h for h, i in zip(headerIdKeys, ids) if i is not None]
 
-		# Print out clean version
-		pubOut.write(
-			f'{idsStr}\t{procDict[dbId][ExtractKeys.AUTHOR_NAMES]}'
-			f'\t{procDict[dbId][ExtractKeys.YEAR]}\t')
-		pubOut.write(
-			f'{authorKeyHere}\t{procDict[dbId][ExtractKeys.TITLE]}'
-			f'\t{titleMinHere}\t')
-		pubOut.write(
-			f'{procDict[dbId][ExtractKeys.JOURNAL]}'
-			f'\t{procDict[dbId][ExtractKeys.JOURNAL_KEY]}\t')
-		pubOut.write(
-			f'{match}\t{basisOut}\t{matchGroupOut}'
-			f'\t{procDict[dbId][ExtractKeys.ROW]}\n')
+		# add clean record
+		record = OrderedDict()
+		for header, idStr in zip(headerIds, idsStr):
+			record[header] = idStr
+		record['Author_Names'] = procDict[dbId][ExtractKeys.AUTHOR_NAMES]
+		record['Year'] = procDict[dbId][ExtractKeys.YEAR]
+		record['Author_Year_Key'] = authorKeyHere
+		record['Title'] = procDict[dbId][ExtractKeys.TITLE]
+		record['Title_Key'] = titleMinHere
+		record['Journal_Details'] = procDict[dbId][ExtractKeys.JOURNAL]
+		record['Journal_Key'] = procDict[dbId][ExtractKeys.JOURNAL_KEY]
+		record['Similar_Records'] = match
+		record['Similarity'] = basisOut
+		record['Similar_group'] = matchGroupOut
+		if pubmedHeaders:
+			for header, val in zip(
+					pubmedHeaders, procDict[dbId][ExtractKeys.ROW]):
+				if header in record:
+					header = f'{header}_orig'
+				record[header] = val
+		records.append(record)
 
-	pubOut.flush()
-	return procDict, pd.read_csv(cleanFileName, sep='\t')
+	df_out = pd.DataFrame.from_records(records)
+	df_out.to_csv(f'{os.path.splitext(path)[0]}_clean.tsv', sep='\t')
+	return procDict, df_out
 
 
 def findOverlaps(
