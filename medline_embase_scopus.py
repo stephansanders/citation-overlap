@@ -174,7 +174,8 @@ class DbExtractor:
 			extractor was not found.
 
 		"""
-		pathDbSplit = os.path.basename(path).split('_')
+		# use 1st segment of filename for database name
+		pathDbSplit = os.path.basename(os.path.splitext(path)[0]).split('_')
 		pathDb = pathDbSplit[0].lower()
 		dbName = pathDb
 		dbEnum = None
@@ -182,6 +183,7 @@ class DbExtractor:
 			# format the database name according to the Enum value
 			dbEnum = DbNames[pathDb.upper()]
 			dbName = dbEnum.value
+
 		if not extractorPath:
 			# identify a YAML extractor for the given database based on first
 			# part of the path filename
