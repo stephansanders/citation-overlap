@@ -226,13 +226,7 @@ class DbExtractor:
 			return None
 		if not outputFileName:
 			outputFileName = 'medline_embase_scopus_combo.tsv'
-		allOut = open(outputFileName, 'w')
-		allOut.write(
-			f'Paper_ID\tPMID\tAuthor_Names\tYear\tAuthor_Year_Key\tTitle'
-			f'\tTitle_Key\t')
-		allOut.write(
-			f'Journal_Details\tJournal_Key\tSimilar_Records\tSimilarity\tGroup'
-			f'\tPapers_In_Group\tMedline\tEmbase\tScopus\tFirst\tMainRecord\n')
+		records = []
 
 		print('\n#################################################################')
 		print(' Looking for overlaps')
@@ -249,13 +243,16 @@ class DbExtractor:
 		for dbName, dbDict in self.dbsParsed.items():
 			# find overlaps among parsed dicts
 			globalmatchCount = findOverlaps(
-				allOut, dbDict, self.dbsParsed.values(), self.globalPmidDict,
+				records, dbDict, self.dbsParsed, self.globalPmidDict,
 				self.globalAuthorKeyDict, self.globalTitleMinDict,
 				dbName[:3].upper(), matchGroupNew, idToGroup,
 				idToSubgroup, subgroupToId, idToDistance, globalmatchCount)
 
-		allOut.flush()
-		df = pd.read_csv(outputFileName, sep='\t')
+		df = pd.DataFrame.from_records(records)
+		# TODO: for backward compatibility to use minimal quoting
+		df.to_csv(
+			outputFileName, sep='\t', index=False, quoting=csv.QUOTE_NONE,
+			quotechar="",  escapechar="\\")
 		print(df)
 		return df
 
@@ -1303,16 +1300,18 @@ def processDatabase(
 
 
 def findOverlaps(
-		allOut, procDict, dbDicts, globalPmidDict, globalAuthorKeyDict,
+		records, procDict, dbDicts, globalPmidDict, globalAuthorKeyDict,
 		globalTitleMinDict, dbAbbr, matchGroupNew, idToGroup, idToSubgroup,
 		subgroupToId, idToDistance, globalmatchCount):
 	"""Find overlaps between processed database entries.
 
 	Args:
-		allOut:
+		records (List[dict]): List of records, to which records from
+			``procDict`` will be added.
 		procDict (dict[str, dict[:obj:`ExtractKeys`, str]]): Processed
 			database dict.
-		dbDicts (List[dict[str, dict[str, str]]]): Sequence of database dicts.
+		dbDicts (dict[str, [dict[str, dict[str, str]]]]): Dictionary of
+			database dicts.
 		globalPmidDict:
 		globalAuthorKeyDict:
 		globalTitleMinDict:
@@ -1329,7 +1328,7 @@ def findOverlaps(
 
 	"""
 	# set up counts per database
-	dbAbbrs = [f'{tuple(d.keys())[0][:3]}' for d in dbDicts if d]
+	dbAbbrs = [f'{tuple(d.keys())[0][:3]}' for d in dbDicts.values() if d]
 	# TODO: temporarily include for comparison with prior output
 	dbAbbrs.append('ONE')
 
@@ -1356,7 +1355,7 @@ def findOverlaps(
 				for extraId in matchKeyList.split('|'):
 					# printv(extraId)
 					pmidExtraId, authorKeyExtraId, titleMinExtraId = \
-						getDetails(extraId, dbDicts)
+						getDetails(extraId, dbDicts.values())
 					if extraId != medId:
 						matchKeyDict, matchKeyDictLenNew, basisDict = \
 							matchListMaker(
@@ -1380,7 +1379,7 @@ def findOverlaps(
 			if match != '.':
 				idToGroup, idToSubgroup, subgroupToId, idToDistance = \
 					subGroupV2(
-						matchKeyDict, dbDicts,
+						matchKeyDict, dbDicts.values(),
 						matchGroupOut, idToGroup,
 						idToSubgroup, subgroupToId, idToDistance)
 			else:
@@ -1430,19 +1429,28 @@ def findOverlaps(
 			if key in matchSub:
 				mainRecord = 'N'
 
-		# Print out clean version
-		allOut.write(
-			f'{medId}\t{pmidHere}\t{procDict[medId][ExtractKeys.AUTHOR_NAMES]}'
-			f'\t{procDict[medId][ExtractKeys.YEAR]}\t')
-		allOut.write(
-			f'{authorKeyHere}\t{procDict[medId][ExtractKeys.TITLE]}'
-			f'\t{titleMinHere}\t{procDict[medId][ExtractKeys.JOURNAL]}'
-			f'\t{journalKey}\t')
-		statsStr = '\t'.join([str(v) for v in stats.values()])
-		allOut.write(
-			f'{match}\t{matchSub}\t{matchSubGroupOut}\t{papersInGroup}'
-			f'\t{statsStr}'
-			f'\t{mainRecord}\n')
+		# add clean record
+		record = OrderedDict((
+			('Paper_ID', medId),
+			('PMID', pmidHere),
+			('Author_Names', procDict[medId][ExtractKeys.AUTHOR_NAMES]),
+			('Year', procDict[medId][ExtractKeys.YEAR]),
+			('Author_Year_Key', authorKeyHere),
+			('Title', procDict[medId][ExtractKeys.TITLE]),
+			('Title_Key', titleMinHere),
+			('Journal_Details', procDict[medId][ExtractKeys.JOURNAL]),
+			('Journal_Key', journalKey),
+			('Similar_Records', match),
+			('Similarity', matchSub),
+			('Group', matchSubGroupOut),
+			('Papers_In_Group', papersInGroup),
+		))
+		dbDictsNames = list(dbDicts.keys())
+		dbDictsNames.append('First')
+		for name, val in zip(dbDictsNames, stats.values()):
+			record[name] = str(val)
+		record['MainRecord'] = mainRecord
+		records.append(record)
 	return globalmatchCount
 
 
