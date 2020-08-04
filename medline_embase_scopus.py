@@ -606,23 +606,6 @@ def dbExtract(row, extractor):
 	return extraction
 
 
-def fileNamer(inputFile):
-	"""Get the clean version output file name.
-
-	Args:
-		inputFile (str): Input filename.
-
-	Returns:
-		str: Formatted filename.
-
-	"""
-	inputFileBits = inputFile.split('.')
-	inputFileBits.pop() # remove extension
-	inputFileBase = '.'.join(inputFileBits)
-	cleaninputFileName = f'{inputFileBase}_clean.tsv'
-	return cleaninputFileName
-
-
 def matchListMaker(
 		pmidHere, authorKeyHere, titleMinHere, pmidDict,
 		authorKeyDict, titleMinDict, theId, matchKeyDict, basisDict):
@@ -1210,7 +1193,7 @@ def processDatabase(
 		headerMainId = f'{dbName}_ID'
 
 	procDict = {}
-	cleanFileName = fileNamer(path)
+	cleanFileName = f'{os.path.splitext(path)[0]}_clean.tsv'
 	pubOut = open(cleanFileName, 'w')
 
 	# Process the file
