@@ -140,6 +140,8 @@ class DbExtractor:
 	"""Perform database extractions and store results for overlap detection.
 
 	Attributes:
+		saveSep (str): Separator/delimiter to use when exporting data frames;
+			defaults to None to not export.
 		globalPmidDict (dict): PubMed ID dict.
 		globalAuthorKeyDict (dict): Author keys dict.
 		globalTitleMinDict (dict): Short title dict.
@@ -147,7 +149,9 @@ class DbExtractor:
 		dbsParsed (OrderedDict): Dictionary of parsed database files.
 
 	"""
-	def __init__(self):
+	def __init__(self, saveSep=None):
+		self.saveSep = saveSep
+
 		self.globalPmidDict = {}
 		self.globalAuthorKeyDict = {}
 		self.globalTitleMinDict = {}
@@ -155,6 +159,20 @@ class DbExtractor:
 		self.dbsParsed = OrderedDict()
 
 		self._dbNamesLower = [e.value.lower() for e in DbNames]
+
+	def _saveDataFrame(self, df, path, suffix=''):
+		"""Save a data frame to file.
+
+		Args:
+			df (:obj:`pd.DataFrame`): Data frame to export.
+			path (str): Base path for export.
+			suffix (str): Path suffix; defaults to ''.
+
+		"""
+		ext = 'tsv' if self.saveSep == '\t' else 'csv'
+		pathOut = f'{os.path.splitext(path)[0]}{suffix}.{ext}'
+		df.to_csv(pathOut, sep=self.saveSep, index=False)
+		print('Saved output file to:', pathOut)
 
 	def extractDb(self, path, extractorPath=None, df=None):
 		"""Extract a database file into a parsed format.
@@ -206,6 +224,8 @@ class DbExtractor:
 				path, df, dbName, extractor, self.globalPmidDict,
 				self.globalAuthorKeyDict, self.globalTitleMinDict,
 				self.globalJournalKeyDict, headerMainId)
+			if self.saveSep:
+				self._saveDataFrame(df, path, '_clean')
 		else:
 			print(f'Could not find extrator for "{path}"')
 		return df, dbName
@@ -225,7 +245,7 @@ class DbExtractor:
 		if not self.dbsParsed:
 			return None
 		if not outputFileName:
-			outputFileName = 'medline_embase_scopus_combo.csv'
+			outputFileName = 'medline_embase_scopus_combo'
 		records = []
 
 		print('\n#################################################################')
@@ -254,8 +274,9 @@ class DbExtractor:
 		df = df.sort_values(['Group', 'Sub'])
 		df = df.fillna('none')  # replace np.nan
 		df['Group'] = df['Group'].astype(str).str.split('.', 1, expand=True)
-		df.to_csv(outputFileName, index=False)
 		print(df)
+		if self.saveSep:
+			self._saveDataFrame(df, outputFileName)
 		return df
 
 
@@ -1297,7 +1318,6 @@ def processDatabase(
 		records.append(record)
 
 	df_out = pd.DataFrame.from_records(records)
-	df_out.to_csv(f'{os.path.splitext(path)[0]}_clean.csv')
 	return procDict, df_out
 
 
@@ -1506,7 +1526,7 @@ def main(paths, outputFileName=None):
 
 	"""
 	# assume that paths are ordered by arg parser
-	dbExtractor = DbExtractor()
+	dbExtractor = DbExtractor('\t')
 	for path in paths:
 		dbExtractor.extractDb(path)
 	return dbExtractor.combineOverlaps(outputFileName)
