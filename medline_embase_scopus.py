@@ -248,8 +248,12 @@ class DbExtractor:
 				dbName[:3].upper(), matchGroupNew, idToGroup,
 				idToSubgroup, subgroupToId, idToDistance, globalmatchCount)
 
+		# import records to data frame and sort with ungrouped rows at end,
+		# filling NA after the sort
 		df = pd.DataFrame.from_records(records)
-		# TODO: for backward compatibility to use minimal quoting
+		df = df.sort_values(['Group', 'Sub'])
+		df = df.fillna('none')  # replace np.nan
+		df['Group'] = df['Group'].astype(str).str.split('.', 1, expand=True)
 		df.to_csv(outputFileName, index=False)
 		print(df)
 		return df
@@ -1396,6 +1400,13 @@ def findOverlaps(
 						f'{matchSub};{idName}' \
 						f'({idToDistance[medId][idName]})'
 
+		# convert x.y (group.subgroup) to separate fields, defaulting to a
+		# zero string for subgrounp
+		group, sub = matchSubGroupOut.split('.')
+		group = int(group) if group else None
+		if not sub:
+			sub = '0'
+
 		# Assess group status
 		match = '.'
 		for idName in idToGroup[medId].split(';'):
@@ -1431,6 +1442,8 @@ def findOverlaps(
 		record = OrderedDict((
 			('Paper_ID', medId),
 			('PMID', pmidHere),
+			('Group', group),
+			('Sub', sub),
 			('Author_Names', procDict[medId][ExtractKeys.AUTHOR_NAMES]),
 			('Year', procDict[medId][ExtractKeys.YEAR]),
 			('Author_Year_Key', authorKeyHere),
@@ -1440,7 +1453,6 @@ def findOverlaps(
 			('Journal_Key', journalKey),
 			('Similar_Records', match),
 			('Similarity', matchSub),
-			('Group', matchSubGroupOut),
 			('Papers_In_Group', papersInGroup),
 		))
 		dbDictsNames = list(dbDicts.keys())
