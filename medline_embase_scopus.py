@@ -204,32 +204,32 @@ class DbExtractor:
 			extractor was not found.
 
 		"""
-		# use 1st segment of filename for database name
-		pathDbSplit = os.path.basename(os.path.splitext(path)[0]).split('_')
-		pathDb = pathDbSplit[0].lower()
-		dbName = pathDb
-		dbEnum = None
-		for name in self._dbNamesLower:
-			if pathDb.startswith(name):
-				# format the database name according to the Enum value
-				dbEnum = DbNames[name.upper()]
-				dbName = dbEnum.value
-				break
-
 		if not extractorPath:
 			# identify a YAML extractor for the given database based on first
 			# part of the path filename
+			pathDbSplit = os.path.basename(os.path.splitext(path)[0]).split('_')
 			extractorPaths = glob.glob(os.path.join(
-				PATH_EXTRACTORS, f'{pathDb}.*'))
+				PATH_EXTRACTORS, f'{pathDbSplit[0].lower()}.*'))
 			for extrPath in extractorPaths:
 				if os.path.splitext(extrPath.lower())[1] in ('.yml', '.yaml'):
 					# case-insensitive match for YAML extension
 					extractorPath = extrPath
 					break
+
+		dbName = None
 		if extractorPath and os.path.exists(extractorPath):
 			# extract database file contents
 			print(f'Loading extractor from "{extractorPath}" for "{path}"')
 			extractor = load_yaml(extractorPath, _YAML_MATCHER)[0]
+			dbName = os.path.splitext(
+				os.path.basename(extractorPath))[0].lower()
+			dbEnum = None
+			for name in self._dbNamesLower:
+				if dbName.startswith(name):
+					# format the database name according to the Enum value
+					dbEnum = DbNames[name.upper()]
+					dbName = dbEnum.value
+					break
 			headerMainId = 'Embase_ID' if dbEnum is DbNames.SCOPUS else None
 			if df is None:
 				df = pd.read_csv(
