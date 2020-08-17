@@ -146,7 +146,12 @@ class DbExtractor:
 		globalAuthorKeyDict (dict): Author keys dict.
 		globalTitleMinDict (dict): Short title dict.
 		globalJournalKeyDict (dict): Journal key dict.
-		dbsParsed (OrderedDict): Dictionary of parsed database files.
+		dbsParsed (OrderedDict[str, dict]): Dictionary of database names to
+			parsed database dictionaries; defaults to an empty dictionary.
+		dfsParsed (OrderedDict): Dictionary of database names to
+			parsed database data frames; defaults to an empty dictionary.
+		dfOverlaps (:obj:`pd.DataFrame`): Data frame of databases processed
+			for overlaps; defaults to None.
 
 	"""
 	def __init__(self, saveSep=None):
@@ -157,6 +162,8 @@ class DbExtractor:
 		self.globalTitleMinDict = {}
 		self.globalJournalKeyDict = {}
 		self.dbsParsed = OrderedDict()
+		self.dfsParsed = OrderedDict()
+		self.dfOverlaps = None
 
 		self._dbNamesLower = [e.value.lower() for e in DbNames]
 
@@ -220,22 +227,16 @@ class DbExtractor:
 			if df is None:
 				df = pd.read_csv(
 					path, index_col=False, dtype=str, na_filter=False)
-			self.dbsParsed[dbName], df = processDatabase(
+			self.dbsParsed[dbName], self.dfsParsed[dbName] = processDatabase(
 				path, df, dbName, extractor, self.globalPmidDict,
 				self.globalAuthorKeyDict, self.globalTitleMinDict,
 				self.globalJournalKeyDict, headerMainId)
-			if self.saveSep:
-				self._saveDataFrame(df, path, '_clean')
 		else:
 			print(f'Could not find extrator for "{path}"')
 		return df, dbName
 
-	def combineOverlaps(self, outputFileName=None):
+	def combineOverlaps(self):
 		"""Combine overlaps from extracted databases in :attr:`dbParsed`.
-
-		Args:
-			outputFileName (str): Output path; defaults to None to use
-				a default name.
 
 		Returns:
 			:obj:`pd.DataFrame`: Data frame of overlaps, or None if
@@ -244,8 +245,6 @@ class DbExtractor:
 		"""
 		if not self.dbsParsed:
 			return None
-		if not outputFileName:
-			outputFileName = 'medline_embase_scopus_combo'
 		records = []
 
 		print('\n#################################################################')
@@ -275,9 +274,29 @@ class DbExtractor:
 		df = df.fillna('none')  # replace np.nan
 		df['Group'] = df['Group'].astype(str).str.split('.', 1, expand=True)
 		print(df)
-		if self.saveSep:
-			self._saveDataFrame(df, outputFileName)
+		self.dfOverlaps = df
 		return df
+
+	def exportDataFrames(self, overlapsOutPath=None):
+		"""Export parsed database and overlaps data frames to file with
+		separator/delimiter and extension determined by :attr:`saveSep`.
+
+		Args:
+			overlapsOutPath (str): Path to overlaps files; defaults to None
+				to use 'medline_embase_scopus_combo'. Directories for
+				parsed data frames will use this path's directory. Any
+				extension will be overwritten by :attr:`saveSep`.
+
+		"""
+		if not self.saveSep:
+			return
+		if overlapsOutPath is None:
+			overlapsOutPath = 'medline_embase_scopus_combo'
+		dirPath = os.path.dirname(overlapsOutPath)
+		for dbName, df in self.dfsParsed.items():
+			self._saveDataFrame(df, os.path.join(dirPath, dbName), '_clean')
+		if self.dfOverlaps is not None:
+			self._saveDataFrame(self.dfOverlaps, overlapsOutPath)
 
 
 _YAML_MATCHER = {
@@ -1529,7 +1548,8 @@ def main(paths, outputFileName=None):
 	dbExtractor = DbExtractor('\t')
 	for path in paths:
 		dbExtractor.extractDb(path)
-	return dbExtractor.combineOverlaps(outputFileName)
+	dbExtractor.combineOverlaps()
+	dbExtractor.exportDataFrames(outputFileName)
 
 
 if __name__ == "__main__":
