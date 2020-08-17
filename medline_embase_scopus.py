@@ -175,11 +175,16 @@ class DbExtractor:
 			path (str): Base path for export.
 			suffix (str): Path suffix; defaults to ''.
 
+		Returns:
+			str, pathOut: Output message and path.
+
 		"""
 		ext = 'tsv' if self.saveSep == '\t' else 'csv'
 		pathOut = f'{os.path.splitext(path)[0]}{suffix}.{ext}'
 		df.to_csv(pathOut, sep=self.saveSep, index=False)
-		print('Saved output file to:', pathOut)
+		msg = f'Saved output file to: {pathOut}'
+		print(msg)
+		return msg, pathOut
 
 	def extractDb(self, path, extractorPath=None, df=None):
 		"""Extract a database file into a parsed format.
@@ -287,16 +292,23 @@ class DbExtractor:
 				parsed data frames will use this path's directory. Any
 				extension will be overwritten by :attr:`saveSep`.
 
+		Returns:
+			List[str]: List of output messages.
+
 		"""
 		if not self.saveSep:
 			return
 		if overlapsOutPath is None:
 			overlapsOutPath = 'medline_embase_scopus_combo'
 		dirPath = os.path.dirname(overlapsOutPath)
+		msgs = []
 		for dbName, df in self.dfsParsed.items():
-			self._saveDataFrame(df, os.path.join(dirPath, dbName), '_clean')
+			msgs.append(self._saveDataFrame(
+				df, os.path.join(dirPath, dbName), '_clean')[0])
 		if self.dfOverlaps is not None:
-			self._saveDataFrame(self.dfOverlaps, overlapsOutPath)
+			msgs.append(self._saveDataFrame(
+				self.dfOverlaps, overlapsOutPath)[0])
+		return msgs
 
 
 _YAML_MATCHER = {
