@@ -217,6 +217,7 @@ class DbExtractor:
 					break
 
 		dbName = None
+		df_out = None
 		if extractorPath and os.path.exists(extractorPath):
 			# extract database file contents
 			print(f'Loading extractor from "{extractorPath}" for "{path}"')
@@ -234,13 +235,14 @@ class DbExtractor:
 			if df is None:
 				df = pd.read_csv(
 					path, index_col=False, dtype=str, na_filter=False)
-			self.dbsParsed[dbName], self.dfsParsed[dbName] = processDatabase(
+			self.dbsParsed[dbName], df_out = processDatabase(
 				path, df, dbName, extractor, self.globalPmidDict,
 				self.globalAuthorKeyDict, self.globalTitleMinDict,
 				self.globalJournalKeyDict, headerMainId)
+			self.dfsParsed[dbName] = df_out
 		else:
 			print(f'Could not find extrator for "{path}"')
-		return df, dbName
+		return df_out, dbName
 
 	def combineOverlaps(self):
 		"""Combine overlaps from extracted databases in :attr:`dbParsed`.
