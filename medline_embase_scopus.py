@@ -209,10 +209,12 @@ class DbExtractor:
 		pathDb = pathDbSplit[0].lower()
 		dbName = pathDb
 		dbEnum = None
-		if pathDb in self._dbNamesLower:
-			# format the database name according to the Enum value
-			dbEnum = DbNames[pathDb.upper()]
-			dbName = dbEnum.value
+		for name in self._dbNamesLower:
+			if pathDb.startswith(name):
+				# format the database name according to the Enum value
+				dbEnum = DbNames[name.upper()]
+				dbName = dbEnum.value
+				break
 
 		if not extractorPath:
 			# identify a YAML extractor for the given database based on first
