@@ -56,7 +56,7 @@ PATH_EXTRACTORS = 'extractors'
 
 class DefaultExtractors(Enum):
 	"""Default extractor filenames Enumeration."""
-	MEDLINE = 'medline2.yml'
+	MEDLINE = 'medline.yml'
 	EMBASE = 'embase.yml'
 	SCOPUS = 'scopus.yml'
 
