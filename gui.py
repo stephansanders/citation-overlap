@@ -194,6 +194,7 @@ class CiteOverlapGUI(HasTraits):
 		extractorNames.extend(glob.glob(
 			os.path.join(medline_embase_scopus.PATH_EXTRACTORS, "*")))
 		self._extractorNames.selections = extractorNames
+		self._extractor = self._extractorNames.selections[0]
 
 		# populate drop-down of separators/delimiters
 		self._exportSepNames = TraitsList()
@@ -235,38 +236,63 @@ class CiteOverlapGUI(HasTraits):
 		"""Import a Medline file and display in table."""
 		df = self._importFile(
 			self._medlinePath, medline_embase_scopus.DefaultExtractors.MEDLINE)
-		self._medlineAdapter._widths, self._medlineAdapter.columns, \
-			self._medline = self._df_to_cols(df)
-		self.select_sheet_tab = SheetTabs.MEDLINE.value
+		if df is not None:
+			self._medlineAdapter._widths, self._medlineAdapter.columns, \
+				self._medline = self._df_to_cols(df)
+			self.select_sheet_tab = SheetTabs.MEDLINE.value
 
 	@on_trait_change('_embasePath')
 	def importEmbase(self):
 		"""Import an Embase file and display in table."""
 		df = self._importFile(
 			self._embasePath, medline_embase_scopus.DefaultExtractors.EMBASE)
-		self._embaseAdapter._widths, self._embaseAdapter.columns, \
-			self._embase = self._df_to_cols(df)
-		self.select_sheet_tab = SheetTabs.EMBASE.value
+		if df is not None:
+			self._embaseAdapter._widths, self._embaseAdapter.columns, \
+				self._embase = self._df_to_cols(df)
+			self.select_sheet_tab = SheetTabs.EMBASE.value
 
 	@on_trait_change('_scopusPath')
 	def importScopus(self):
 		"""Import a SCOPUS file and display in table."""
 		df = self._importFile(
 			self._scopusPath, medline_embase_scopus.DefaultExtractors.SCOPUS)
-		self._scopusAdapter._widths, self._scopusAdapter.columns, \
-			self._scopus = self._df_to_cols(df)
-		self.select_sheet_tab = SheetTabs.SCOPUS.value
+		if df is not None:
+			self._scopusAdapter._widths, self._scopusAdapter.columns, \
+				self._scopus = self._df_to_cols(df)
+			self.select_sheet_tab = SheetTabs.SCOPUS.value
 
-	def _importFile(self, path, extractor):
-		"""Import a database file."""
+	def _importFile(self, path, extractor=None):
+		"""Import a database file.
+
+		Args:
+			path (str): Path to database file to import.
+			extractor (:obj:`medline_embase_scopus.DefaultExtractors`):
+				Enum of default extractor for the given database. Ignored
+				if :attr:`_extractor` is :const:`_DEFAULT_EXTRACTOR`.
+				Defaults to None to determine by :meth:`dbExtractor.extractDb`.
+
+		Returns:
+			:obj:`pd.DataFrame`: Data frame of extracted file.
+
+		"""
+		if not os.path.exists(path):
+			# file inaccessible, or manually edited, non-accessible path
+			self._statusBarMsg = f'{path} could not be found, skipping'
+			return None
+
 		extractorPath = self._extractor
 		if extractorPath is self._DEFAULT_EXTRACTOR:
+			# auto-select extractor based on given database
 			if extractor:
+				# use given extractor
 				extractorPath = os.path.join(
 					medline_embase_scopus.PATH_EXTRACTORS,
 					extractor.value)
 			else:
+				# defer finding extractor to the extractor function
 				extractorPath = None
+
+		# extract file
 		df, dbName = self.dbExtractor.extractDb(path, extractorPath)
 		self._statusBarMsg = f'Imported file from {path}'
 		return df
