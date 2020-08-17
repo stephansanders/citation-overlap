@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from collections import OrderedDict
 from enum import Enum, auto
 import glob
 import os
@@ -66,19 +67,37 @@ class CiteOverlapHandler(Handler):
 
 class CiteOverlapGUI(HasTraits):
 	"""GUI for Citation Overlap."""
+	#: OrderedDict[str, str]: Dictionary of separator descriptions to
+	# separator characters.
+	_EXPORT_SEPS = OrderedDict((
+		('Tabs (.tsv)', '\t'),
+		('Comma (.csv)', ','),
+		('Bar (.csv)', '|'),
+		('Semi-colon (.csv)', ';'),
+	))
 
 	# select the given tag based on SheetTabs enum value
 	select_sheet_tab = Int(-1)
 
 	# Control panel controls
+
+	# input paths
 	_medlinePath = File()
 	_embasePath = File()
 	_scopusPath = File()
+
+	# extractor drop-down
 	_extractor = Str
 	_extractorNames = Instance(TraitsList)
 	_DEFAULT_EXTRACTOR = 'Auto'
-	_importBtn = Button('Import file')
+
+	# button to find overlaps
 	_overlapBtn = Button('Find Overlaps')
+
+	# table export
+	_exportBtn = Button('Export tables')
+	_exportSep = Str
+	_exportSepNames = Instance(TraitsList)
 
 	# Medline table
 	_medlineAdapter = TableArrayAdapter()
@@ -126,6 +145,13 @@ class CiteOverlapGUI(HasTraits):
 					name="object._extractorNames.selections")),
 		),
 		Item('_overlapBtn', show_label=False),
+		HGroup(
+			Item('_exportBtn', show_label=False),
+			Item(
+				"_exportSep", label="Separator",
+				editor=CheckListEditor(
+					name="object._exportSepNames.selections")),
+		),
 	)
 
 	# tabbed viewer of tables
@@ -152,11 +178,18 @@ class CiteOverlapGUI(HasTraits):
 	def __init__(self):
 		"""Initialize the GUI."""
 		super().__init__()
+
+		# populate drop-down of available extractors
 		self._extractorNames = TraitsList()
 		extractorNames = [self._DEFAULT_EXTRACTOR]
 		extractorNames.extend(glob.glob(
 			os.path.join(medline_embase_scopus.PATH_EXTRACTORS, "*")))
 		self._extractorNames.selections = extractorNames
+
+		# populate drop-down of separators/delimiters
+		self._exportSepNames = TraitsList()
+		self._exportSepNames.selections = list(self._EXPORT_SEPS.keys())
+		self._exportSep = self._exportSepNames.selections[0]
 
 		self.dbExtractor = medline_embase_scopus.DbExtractor()
 
@@ -237,6 +270,12 @@ class CiteOverlapGUI(HasTraits):
 		self._overlapsAdapter._widths, self._overlapsAdapter.columns, \
 			self._overlaps = self._df_to_cols(df)
 		self.select_sheet_tab = SheetTabs.OVERLAPS.value
+
+	@on_trait_change('_exportBtn')
+	def exportTables(self):
+		"""Export tables to file."""
+		self.dbExtractor.saveSep = self._EXPORT_SEPS[self._exportSep]
+		self.dbExtractor.exportDataFrames()
 
 
 if __name__ == "__main__":
