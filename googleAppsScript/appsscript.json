@@ -7,5 +7,24 @@
   "oauthScopes": [
     "https://www.googleapis.com/auth/spreadsheets.currentonly",
     "https://www.googleapis.com/auth/script.external_request"
-  ]
+  ],
+  "addOns": {
+    "common": {
+      "name": "CitationOverlap",
+      "logoUrl": "https://sanderslab.github.io/images/Lab_Logo_v6c.png",
+      "useLocaleFromApp": true,
+      "homepageTrigger": {
+        "runFunction": "onHomepage",
+        "enabled": true
+      }
+    },
+    "sheets": {
+      "macros": [
+        {
+          "functionName": "findOverlaps",
+          "menuName": "Find overlaps"
+        }
+      ]
+    }
+  }
 }

@@ -1,23 +1,62 @@
 
+DB_NAMES = [
+  'medline',
+  'embase',
+  'scopus'
+];
+
+SHEET_OVERLAPS = 'overlaps';
+
 /**
  * Add a custom menu when the user opens the spreadsheet.
  */
-function onOpen() {
-  var sheet = SpreadsheetApp.getActive();
-  var entries = [{name : "Find overlaps", functionName : "findOverlaps"}, 
-                ];
-  sheet.addMenu("Citation Overlap", entries);
+function onOpen(e) {
+  var menu = SpreadsheetApp.getUi().createAddonMenu();
+  menu.addItem('Set up sheets', 'setupSheets');
+  menu.addItem('Find overlaps', 'findOverlaps');
+  menu.addItem('Remove processed sheets', 'clearSheets');
+//  if (e && e.authMode == ScriptApp.AuthMode.NONE) {
+//    menu.addItem('Find overlaps', 'findOverlaps');
+//  } else {
+//    // TODO: add functionality requiring authoriziation
+//    menu.addItem('Find overlaps', 'findOverlaps');
+//  }
+  menu.addToUi();
+}
+
+function setupSheets() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var namesLen = DB_NAMES.length;
+  for (var i = 0; i < namesLen; i++) {
+    spreadsheet.insertSheet(DB_NAMES[i], i);
+  }
+}
+
+function clearSheets() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetsLen = DB_NAMES.length;
+  var sheetsToRemove = [SHEET_OVERLAPS + '_clean'];
+  for (var i = 0; i < sheetsLen; i++) {
+    sheetsToRemove.push(DB_NAMES[i] + '_clean');
+  }
+  var remLen = sheetsToRemove.length;
+  for (var i = 0; i < remLen; i++) {
+    var sheet = spreadsheet.getSheetByName(sheetsToRemove[i]);
+    if (sheet != null) {
+      spreadsheet.deleteSheet(sheet);
+    }
+  }
 }
 
 function findOverlaps() {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var sheets = spreadsheet.getSheets();
-  var sheetsLen = sheets.length;
+  var namesLen = DB_NAMES.length;
   var data = {};
-  for (var i = 0; i < sheetsLen; i++) {
-    csv = convertRangeToCsvFile(sheets[i]);
-    Logger.log("sheet " + sheets[i].getName())
-    data[sheets[i].getName()] = csv;//.substring(0, 10);
+  for (var i = 0; i < namesLen; i++) {
+    var sheet = spreadsheet.getSheetByName(DB_NAMES[i]);
+    csv = convertRangeToCsvFile(sheet);
+    Logger.log("sheet " + sheet.getName())
+    data[sheet.getName()] = csv;
   }
   var options = {
     "method": "post",
@@ -29,7 +68,6 @@ function findOverlaps() {
     PropertiesService.getUserProperties().getProperty('SERVER_URL'), options);
   var json = response.getContentText()
   //Logger.log("response: " + json);
-  //Logger.log("sub: " + json.substring(361000, 361300));
   var respData = JSON.parse(json);
   //parseCsvStrToSheet(spreadsheet, "overlaps", respData);
   //var sheet = spreadsheet.insertSheet("overlaps", spreadsheet.getNumSheets() + 1);
@@ -96,9 +134,6 @@ function convertRangeToCsvFile(sheet) {
         } else {
           csv += data[row];
         }
-//        if (row >= 349 && row <= 351) {
-//          Logger.log("row " + row + ":" + data[row]);
-//        }
       }
     }
     return csv;
