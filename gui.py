@@ -51,6 +51,13 @@ class SheetTabs(Enum):
 class CiteOverlapHandler(Handler):
 	"""Custom handler for Citation Overlap GUI object events."""
 
+	def init(self, info):
+		"""Perform GUI initialization tasks."""
+		# left-align table headers
+		table_widgets = info.ui.control.findChildren(QtWidgets.QTableView)
+		for table in table_widgets:
+			table.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignLeft)
+
 	def object_select_sheet_tab_changed(self, info):
 		"""Select the given tab specified by
 		:attr:`CiteOverlapGUI.select_controls_tab`.
