@@ -175,10 +175,16 @@ class CiteOverlapGUI(HasTraits):
 
 		"""
 		cols = df.columns.values.tolist()
+		colWidths = []
+		for col in cols:
+			# get widths of all rows in column as well as header
+			colWidth = df[col].astype(str).str.len().tolist()
+			colWidth.append(len(col))
+			colWidths.append(colWidth)
+		# get max width (adjusted by factor) for each col but cap at max width
 		widths = {
-			i: min((
-				max(df[c].astype(str).str.len()) * 15,
-				TableArrayAdapter.MAX_WIDTH)) for i, c in enumerate(cols)
+			i: min((max(c) * 13, TableArrayAdapter.MAX_WIDTH))
+			for i, c in enumerate(colWidths)
 		}
 		return widths, cols, df.to_numpy()
 
