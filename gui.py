@@ -98,6 +98,7 @@ class CiteOverlapGUI(HasTraits):
 	_exportBtn = Button('Export tables')
 	_exportSep = Str
 	_exportSepNames = Instance(TraitsList)
+	_statusBarMsg = Str
 
 	# Medline table
 	_medlineAdapter = TableArrayAdapter()
@@ -173,6 +174,7 @@ class CiteOverlapGUI(HasTraits):
 		title='Citation Overlap',
 		resizable=True,
 		handler=CiteOverlapHandler(),
+		statusbar="_statusBarMsg"
 	)
 
 	def __init__(self):
@@ -259,6 +261,7 @@ class CiteOverlapGUI(HasTraits):
 			else:
 				extractorPath = None
 		df, dbName = self.dbExtractor.extractDb(path, extractorPath)
+		self._statusBarMsg = f'Imported file from {path}'
 		return df
 
 	@on_trait_change('_overlapBtn')
@@ -270,12 +273,14 @@ class CiteOverlapGUI(HasTraits):
 		self._overlapsAdapter._widths, self._overlapsAdapter.columns, \
 			self._overlaps = self._df_to_cols(df)
 		self.select_sheet_tab = SheetTabs.OVERLAPS.value
+		self._statusBarMsg = 'Found overlaps across databases'
 
 	@on_trait_change('_exportBtn')
 	def exportTables(self):
 		"""Export tables to file."""
 		self.dbExtractor.saveSep = self._EXPORT_SEPS[self._exportSep]
-		self.dbExtractor.exportDataFrames()
+		msgs = self.dbExtractor.exportDataFrames()
+		self._statusBarMsg = ", ".join(msgs)
 
 
 if __name__ == "__main__":
