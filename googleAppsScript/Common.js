@@ -1,10 +1,16 @@
+/**
+ * Citation Overlap Google Apps Script Add-On
+ * Stephan Sanders Lab, 2020
+ */
 
+// database names
 DB_NAMES = [
   'medline',
   'embase',
   'scopus'
 ];
 
+// name of sheet with database overlaps
 SHEET_OVERLAPS = 'overlaps';
 
 /**
@@ -24,6 +30,9 @@ function onOpen(e) {
   menu.addToUi();
 }
 
+/**
+ * Set up empty sheets with database names.
+ */
 function setupSheets() {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var namesLen = DB_NAMES.length;
@@ -32,6 +41,9 @@ function setupSheets() {
   }
 }
 
+/**
+ * Clear processed sheets.
+ */
 function clearSheets() {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var sheetsLen = DB_NAMES.length;
@@ -95,6 +107,13 @@ function findOverlaps() {
   }
 }
 
+/**
+ * Parse JSON string to sheet.
+ * 
+ * @param ss Spreadsheet.
+ * @param name Name of sheet to create.
+ * @param jsonData JSON string to insert into the sheet.
+ */
 function parseJsonToSheet(ss, name, jsonData) {
   var sheet = ss.insertSheet(name, ss.getNumSheets() + 1);
   var jsonData = JSON.parse(jsonData);
