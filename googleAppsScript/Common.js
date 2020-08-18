@@ -48,15 +48,31 @@ function clearSheets() {
   }
 }
 
+/**
+ * Pass sheets with database information to web server for extraction and
+ * finding overlaps across databases.
+ *
+ * Wrap up database sheets into JSON payload for server. Accept response
+ * as JSON and parse into separate sheets, with one sheet for each
+ * database and a separate sheet for the overlaps.
+ */
 function findOverlaps() {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheets = spreadsheet.getSheets();
+  var sheetsLen = sheets.length;
   var namesLen = DB_NAMES.length;
   var data = {};
-  for (var i = 0; i < namesLen; i++) {
-    var sheet = spreadsheet.getSheetByName(DB_NAMES[i]);
-    csv = convertRangeToCsvFile(sheet);
-    Logger.log("sheet " + sheet.getName())
-    data[sheet.getName()] = csv;
+  for (var i = 0; i < sheetsLen; i++) {
+    var sheet = sheets[i];
+    var sheetName = sheet.getName();
+    for (var j = 0; j < namesLen; j++) {
+      if (sheetName.startsWith(DB_NAMES[j])) {
+        csv = convertRangeToCsvFile(sheet);
+        Logger.log("sheet " + sheetName)
+        data[sheetName] = csv;
+        break;
+      }
+    }
   }
   var options = {
     "method": "post",
