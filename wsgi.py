@@ -21,12 +21,14 @@ def findOverlaps(data):
 		df = pd.read_csv(
 			io.StringIO(val), sep=',', index_col=False, dtype=str,
 			na_filter=False)
-		df.to_csv(f'{key}_yeeeah.csv', index=False)
 		extractorPath = os.path.join(
-			'flask', medline_embase_scopus.PATH_EXTRACTORS, f'{key}.yml')
-		app.logger.info(path) #, extractorPath, val)
+			'citation-overlap', medline_embase_scopus.PATH_EXTRACTORS,
+			f'{key}.yml')
+		app.logger.info(path)
 		app.logger.info(extractorPath)
-		df, dbName = dbExtractor.extractDb(f'{key}_in.csv', extractorPath, df)
+		df, dbName = dbExtractor.extractDb(path, extractorPath, df)
+		app.logger.info(dbName)
+		app.logger.info(df.head())
 		dfs[key] = df
 	dfs['overlaps'] = dbExtractor.combineOverlaps()
 	return dfs
