@@ -65,7 +65,7 @@ function findOverlaps() {
   };
   //Logger.log("options: " + options["payload"]);
   var response = UrlFetchApp.fetch(
-    PropertiesService.getUserProperties().getProperty('SERVER_URL'), options);
+    PropertiesService.getScriptProperties().getProperty('SERVER_URL'), options);
   var json = response.getContentText()
   //Logger.log("response: " + json);
   var respData = JSON.parse(json);
