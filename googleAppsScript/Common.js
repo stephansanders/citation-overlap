@@ -39,6 +39,7 @@ function setupSheets() {
   for (var i = 0; i < namesLen; i++) {
     spreadsheet.insertSheet(DB_NAMES[i], i);
   }
+  spreadsheet.setActiveSheet(spreadsheet.getSheetByName(DB_NAMES[0]));
 }
 
 /**
