@@ -24,11 +24,10 @@ function onOpen(e) {
   menu.addItem('Set up sheets', 'setupSheets');
   menu.addItem('Find overlaps', 'findOverlaps');
   menu.addItem('Remove processed sheets', 'clearSheets');
+  menu.addItem('Resize processed columns', 'resizeColumns');
 //  if (e && e.authMode == ScriptApp.AuthMode.NONE) {
-//    menu.addItem('Find overlaps', 'findOverlaps');
 //  } else {
 //    // TODO: add functionality requiring authoriziation
-//    menu.addItem('Find overlaps', 'findOverlaps');
 //  }
   menu.addToUi();
 }
@@ -46,19 +45,35 @@ function setupSheets() {
 }
 
 /**
- * Clear processed sheets.
+ * Get processed sheets as identified by suffix or as the overlaps sheet.
+ *
+ * @return Array of processed sheets.
  */
-function clearSheets() {
+function getProcessedSheets() {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var sheets = spreadsheet.getSheets();
   var sheetsLen = sheets.length;
-  // remove all sheets with "clean" suffix and the overlaps sheet
+  var sheetsProc = [];
+  // find all sheets with "clean" suffix and the overlaps sheet
   for (var i = 0; i < sheetsLen; i++) {
     var sheet = sheets[i];
     var name = sheet.getName()
     if (name.endsWith('_clean') || name === SHEET_OVERLAPS) {
-      spreadsheet.deleteSheet(sheet);
+      sheetsProc.push(sheet);
     }
+  }
+  return sheetsProc;
+}
+
+/**
+ * Clear processed sheets.
+ */
+function clearSheets() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheets = getProcessedSheets();
+  var sheetsLen = sheets.length;
+  for (var i = 0; i < sheetsLen; i++) {
+    spreadsheet.deleteSheet(sheets[i]);
   }
 }
 
@@ -107,19 +122,12 @@ function findOverlaps() {
   var namesOv = Object.keys(data);
   namesOv.push(SHEET_OVERLAPS);
   var namesOvLen = namesOv.length;
-  var sheetsAdded = [];
   for (var i = 0; i < namesOvLen; i++) {
     var key = namesOv[i]
     var val = respData[key];
     Logger.log("key: " + key + ", val: " + val.slice(-200));
     var name = key === SHEET_OVERLAPS ? key : key + "_clean"
-    sheetsAdded.push(parseJsonToSheet(spreadsheet, name, val, namesLen + i));
-  }
-  
-  // resize columns of added sheets
-  sheetsAddedLen = sheetsAdded.length;
-  for (var i = 0; i < sheetsAddedLen; i++) {
-    resizeColumns(sheetsAdded[i], MAX_COL_WIDTH);
+    parseJsonToSheet(spreadsheet, name, val, namesLen + i);
   }
 }
 
@@ -198,18 +206,22 @@ function convertRangeToCsvFile(sheet) {
 }
 
 /**
- * Auto-resize columns with upper limit.
- *
- * @param sheet Sheet with columns to resize.
- * @param maxWidth Maximimum size.
+ * Auto-resize columns of processing sheets, with upper limit
+ * imposed by MAX_COL_WIDTH.
  */
-function resizeColumns(sheet, maxWidth) {
-  for (var i = 1; i <= sheet.getLastColumn(); i++) {
-    // auto-resize column
-    sheet.autoResizeColumn(i);
-    if (sheet.getColumnWidth(i) > maxWidth) {
-      // reduce width if exceeds limit
-      sheet.setColumnWidth(i, maxWidth);
+function resizeColumns() {
+  var sheets = getProcessedSheets();
+  var sheetsLen = sheets.length;
+  for (var i = 0; i < sheetsLen; i++) {
+    var sheet = sheets[i];
+    var lastColi = sheet.getLastColumn()
+    for (var j = 1; j <= lastColi; j++) {
+      // auto-resize column
+      sheet.autoResizeColumn(j);
+      if (sheet.getColumnWidth(j) > MAX_COL_WIDTH) {
+        // reduce width if exceeds limit
+        sheet.setColumnWidth(j, MAX_COL_WIDTH);
+      }
     }
   }
 }
