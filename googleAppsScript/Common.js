@@ -93,16 +93,25 @@ function findOverlaps() {
   //Logger.log("options: " + options["payload"]);
   var response = UrlFetchApp.fetch(
     PropertiesService.getScriptProperties().getProperty('SERVER_URL'), options);
+  
+  // insert sheets for server response after database sheets and in their
+  // same order, with overlaps sheet at end; assume response keys are
+  // same as payload except additional overlaps
   var json = response.getContentText()
   //Logger.log("response: " + json);
   var respData = JSON.parse(json);
-  //parseCsvStrToSheet(spreadsheet, "overlaps", respData);
-  //var sheet = spreadsheet.insertSheet("overlaps", spreadsheet.getNumSheets() + 1);
-  //sheet.getRange(1, 1, respData.length, respData[0].length).setValues(respData);
   var respDataLen = respData.length;
-  for (const [key, val] of Object.entries(respData)) {
+  var namesOv = Object.keys(data);
+  namesOv.push(SHEET_OVERLAPS);
+  var namesOvLen = namesOv.length;
+  var sheetsAdded = [];
+  for (var i = 0; i < namesOvLen; i++) {
+    var key = namesOv[i]
+    var val = respData[key];
     Logger.log("key: " + key + ", val: " + val.slice(-200));
-    parseJsonToSheet(spreadsheet, key + "_clean", respData[key]);
+    var name = key === SHEET_OVERLAPS ? key : key + "_clean"
+    sheetsAdded.push(parseJsonToSheet(spreadsheet, name, val, namesLen + i));
+  }
   }
 }
 
@@ -112,9 +121,12 @@ function findOverlaps() {
  * @param ss Spreadsheet.
  * @param name Name of sheet to create.
  * @param jsonData JSON string to insert into the sheet.
+ * @param sheeti Index of sheet to add (0-based indexing).
+ *
+ * @return Inserted sheet.
  */
-function parseJsonToSheet(ss, name, jsonData) {
-  var sheet = ss.insertSheet(name, ss.getNumSheets() + 1);
+function parseJsonToSheet(ss, name, jsonData, sheeti) {
+  var sheet = ss.insertSheet(name, sheeti);
   var jsonData = JSON.parse(jsonData);
   var jsonDataLen = jsonData.length;
   //Logger.log("name: " + name + ", jsonDataLen: " + jsonDataLen + ", jsonData: " + jsonData);
@@ -130,6 +142,7 @@ function parseJsonToSheet(ss, name, jsonData) {
   }
   Logger.log(name + " num rows: " + out.length + ", cols: " + out[0].length);
   sheet.getRange(1, 1, out.length, out[0].length).setValues(out);
+  return sheet;
 }
 
 function parseCsvStrToSheet(ss, name, csvStr) {
