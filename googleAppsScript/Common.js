@@ -90,19 +90,23 @@ function findOverlaps() {
   var sheets = spreadsheet.getSheets();
   var sheetsLen = sheets.length;
   var namesLen = DB_NAMES.length;
+  
+  // convert database sheets to CSV strings
   var data = {};
   for (var i = 0; i < sheetsLen; i++) {
     var sheet = sheets[i];
     var sheetName = sheet.getName();
     for (var j = 0; j < namesLen; j++) {
       if (sheetName.startsWith(DB_NAMES[j])) {
-        csv = convertRangeToCsvFile(sheet);
+        csv = convertRangeToCsvStr(sheet);
         Logger.log("sheet " + sheetName)
         data[sheetName] = csv;
         break;
       }
     }
   }
+  
+  // send database string data to server
   var options = {
     "method": "post",
     "contentType": "application/json",
@@ -172,7 +176,7 @@ function parseCsvStrToSheet(ss, name, csvStr) {
  * @param {Sheet} sheet sheet to export
  * @return {string} sheet in CSV format
  */
-function convertRangeToCsvFile(sheet) {
+function convertRangeToCsvStr(sheet) {
   // gets the range for all data in the sheet
   var activeRange = sheet.getDataRange();
   try {
