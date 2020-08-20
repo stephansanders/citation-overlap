@@ -47,15 +47,13 @@ function setupSheets() {
  */
 function clearSheets() {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var sheetsLen = DB_NAMES.length;
-  var sheetsToRemove = [SHEET_OVERLAPS + '_clean'];
+  var sheets = spreadsheet.getSheets();
+  var sheetsLen = sheets.length;
+  // remove all sheets with "clean" suffix and the overlaps sheet
   for (var i = 0; i < sheetsLen; i++) {
-    sheetsToRemove.push(DB_NAMES[i] + '_clean');
-  }
-  var remLen = sheetsToRemove.length;
-  for (var i = 0; i < remLen; i++) {
-    var sheet = spreadsheet.getSheetByName(sheetsToRemove[i]);
-    if (sheet != null) {
+    var sheet = sheets[i];
+    var name = sheet.getName()
+    if (name.endsWith('_clean') || name === SHEET_OVERLAPS) {
       spreadsheet.deleteSheet(sheet);
     }
   }
