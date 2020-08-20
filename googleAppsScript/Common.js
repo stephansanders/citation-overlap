@@ -13,6 +13,9 @@ DB_NAMES = [
 // name of sheet with database overlaps
 SHEET_OVERLAPS = 'overlaps';
 
+// maximum column width
+MAX_COL_WIDTH = 300;
+
 /**
  * Add a custom menu when the user opens the spreadsheet.
  */
@@ -112,6 +115,11 @@ function findOverlaps() {
     var name = key === SHEET_OVERLAPS ? key : key + "_clean"
     sheetsAdded.push(parseJsonToSheet(spreadsheet, name, val, namesLen + i));
   }
+  
+  // resize columns of added sheets
+  sheetsAddedLen = sheetsAdded.length;
+  for (var i = 0; i < sheetsAddedLen; i++) {
+    resizeColumns(sheetsAdded[i], MAX_COL_WIDTH);
   }
 }
 
@@ -186,5 +194,22 @@ function convertRangeToCsvFile(sheet) {
     return csv;
   } catch(err) {
     Logger.log(err);
+  }
+}
+
+/**
+ * Auto-resize columns with upper limit.
+ *
+ * @param sheet Sheet with columns to resize.
+ * @param maxWidth Maximimum size.
+ */
+function resizeColumns(sheet, maxWidth) {
+  for (var i = 1; i <= sheet.getLastColumn(); i++) {
+    // auto-resize column
+    sheet.autoResizeColumn(i);
+    if (sheet.getColumnWidth(i) > maxWidth) {
+      // reduce width if exceeds limit
+      sheet.setColumnWidth(i, maxWidth);
+    }
   }
 }
