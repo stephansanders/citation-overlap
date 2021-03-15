@@ -51,7 +51,7 @@ import yaml
 
 
 #: str: Path to extractor specification folder.
-PATH_EXTRACTORS = 'extractors'
+PATH_EXTRACTORS = '../extractors'
 
 
 class DefaultExtractors(Enum):

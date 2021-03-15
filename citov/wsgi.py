@@ -7,7 +7,7 @@ import logging
 from flask import Flask, request, jsonify
 import pandas as pd
 
-import medline_embase_scopus
+from citov import medline_embase_scopus
 
 logging.basicConfig(filename='out.log',level=logging.INFO)
 app = Flask(__name__)

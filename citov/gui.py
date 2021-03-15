@@ -14,7 +14,7 @@ from traitsui.api import Handler, View, Item, HGroup, VGroup, Tabbed, \
 	HSplit, TabularEditor, FileEditor, CheckListEditor
 from traitsui.tabular_adapter import TabularAdapter
 
-import medline_embase_scopus
+from citov import medline_embase_scopus
 
 
 def main():
