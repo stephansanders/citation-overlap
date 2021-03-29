@@ -56,6 +56,8 @@ path_qt5 = pathlib.Path("build") / "Qt5"
 path_qt5.mkdir(parents=True, exist_ok=True)
 (path_qt5 / "stub").touch(exist_ok=True)
 
+app_name = citov_setup.config["name"].title()
+
 a = Analysis(
 	["../run.py"],
 	pathex=[],
@@ -89,7 +91,7 @@ exe = EXE(
 	a.scripts,
 	[],
 	exclude_binaries=True,
-	name=citov_setup.config["name"],
+	name=app_name.lower(),
 	debug=False,
 	bootloader_ignore_signals=False,
 	strip=False,
@@ -103,10 +105,10 @@ coll = COLLECT(
 	strip=False,
 	upx=True,
 	upx_exclude=[],
-	name="run")
+	name=app_name)
 app = BUNDLE(
 	coll,
-	name="{}.app".format(citov_setup.config["name"].title()),
+	name=f"{app_name}.app",
 	icon=None,
 	bundle_identifier=None,
 	info_plist={
