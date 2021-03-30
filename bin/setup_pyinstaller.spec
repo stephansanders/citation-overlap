@@ -82,7 +82,16 @@ a = Analysis(
 	hiddenimports=[],
 	hookspath=[],
 	runtime_hooks=[],
-	excludes=[],
+	# exclude hooks for unused PyQt sub-packages
+	excludes=[
+		"PyQt5.QtQml",
+		"PyQt5.QtTest",
+		"PyQt5.QtMultimedia",
+		"PyQt5.QtSql",
+		"PyQt5.QtXml",
+		"PyQt5.QtSerialPort",
+		"PyQt5.QtQuick",
+	],
 	win_no_prefer_redirects=False,
 	win_private_assemblies=False,
 	cipher=block_cipher,
