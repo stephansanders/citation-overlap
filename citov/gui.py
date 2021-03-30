@@ -8,6 +8,7 @@ import os
 from PyQt5 import QtWidgets, QtCore
 # adjust density for HiDPI screens
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
+from pyface.api import FileDialog, OK
 from traits.api import HasTraits, on_trait_change, Int, Str, Button, \
 	Array, push_exception_handler, File, List, Instance
 from traitsui.api import Handler, View, Item, HGroup, VGroup, Tabbed, \
@@ -308,12 +309,40 @@ class CiteOverlapGUI(HasTraits):
 		self.select_sheet_tab = SheetTabs.OVERLAPS.value
 		self._statusBarMsg = 'Found overlaps across databases'
 
+	@staticmethod
+	def _get_save_path(default_path):
+		"""Get a save path from the user through a file dialog.
+
+		Args:
+			default_path (str): Default path to display in the dialog.
+
+		Returns:
+			str: Chosen path.
+
+		Raises:
+			FileNotFoundError: User canceled file selection.
+
+		"""
+		# open a PyFace file dialog in save mode
+		save_dialog = FileDialog(action="save as", default_path=default_path)
+		if save_dialog.open() == OK:
+			# get user selected path
+			return save_dialog.path
+		else:
+			# user canceled file selection
+			raise FileNotFoundError("User canceled file selection")
+
 	@on_trait_change('_exportBtn')
 	def exportTables(self):
 		"""Export tables to file."""
 		self.dbExtractor.saveSep = self._EXPORT_SEPS[self._exportSep]
-		msgs = self.dbExtractor.exportDataFrames()
-		self._statusBarMsg = ", ".join(msgs)
+		try:
+			save_path = self._get_save_path(
+				self.dbExtractor.DEFAULT_OVERLAPS_PATH)
+			msgs = self.dbExtractor.exportDataFrames(save_path)
+			self._statusBarMsg = ", ".join(msgs)
+		except FileNotFoundError:
+			print("Skipping file save")
 
 
 if __name__ == "__main__":

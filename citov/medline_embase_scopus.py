@@ -156,6 +156,9 @@ class DbExtractor:
 			for overlaps; defaults to None.
 
 	"""
+	#: str: Default overlaps file output filename.
+	DEFAULT_OVERLAPS_PATH = 'medline_embase_scopus_combo'
+
 	def __init__(self, saveSep=None):
 		self.saveSep = saveSep
 
@@ -288,24 +291,16 @@ class DbExtractor:
 		self.dfOverlaps = df
 		return df
 
-	def exportDataFrames(self, overlapsOutPath=None):
-		"""Export parsed database and overlaps data frames to file with
-		separator/delimiter and extension determined by :attr:`saveSep`.
+	def exportDataFrames(self, overlapsOutPath):
+		"""Export parsed database and overlaps data frames to file.
 
 		Args:
-			overlapsOutPath (str): Path to overlaps files; defaults to None
-				to use 'medline_embase_scopus_combo'. Directories for
-				parsed data frames will use this path's directory. Any
-				extension will be overwritten by :attr:`saveSep`.
+			overlapsOutPath (str): Path to overlaps files.
 
 		Returns:
 			List[str]: List of output messages.
 
 		"""
-		if not self.saveSep:
-			return
-		if overlapsOutPath is None:
-			overlapsOutPath = 'medline_embase_scopus_combo'
 		dirPath = os.path.dirname(overlapsOutPath)
 		msgs = []
 		for dbName, df in self.dfsParsed.items():
@@ -1567,7 +1562,8 @@ def main(paths, outputFileName=None):
 	for path in paths:
 		dbExtractor.extractDb(path)
 	dbExtractor.combineOverlaps()
-	dbExtractor.exportDataFrames(outputFileName)
+	dbExtractor.exportDataFrames(
+		outputFileName if outputFileName else dbExtractor.DEFAULT_OVERLAPS_PATH)
 
 
 if __name__ == "__main__":
