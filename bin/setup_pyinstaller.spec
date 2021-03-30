@@ -76,6 +76,8 @@ a = Analysis(
 		)],
 		# workaround for error when folder is missing
 		(path_qt5.resolve(), pathlib.Path("Pyqt5") / "Qt5"),
+		# extractor specs
+		("../extractors", "extractors"),
 	],
 	hiddenimports=[],
 	hookspath=[],
