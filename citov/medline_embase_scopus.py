@@ -17,6 +17,8 @@ import jellyfish # string comparison # pip3 install jellyfish
 import pandas as pd
 import yaml
 
+from citov import config
+
 # How to perform the search
 
 # Pubmed
@@ -44,14 +46,14 @@ import yaml
 # Click arrow next to 'All' above the column headings and below
 # 'Analyze search results'; click 'Select all'
 # Click 'Export'
-# Select 'CSV Export' 
+# Select 'CSV Export'
 # Add PubMed ID (you may want to add Abstract too)
 # Click Export
 # Combine the lists in a text editor or Google Sheet, not in Excel
 
 
 #: str: Path to extractor specification folder.
-PATH_EXTRACTORS = '../extractors'
+PATH_EXTRACTORS = config.app_dir / 'extractors'
 
 
 class DefaultExtractors(Enum):
@@ -208,8 +210,8 @@ class DbExtractor:
 			# identify a YAML extractor for the given database based on first
 			# part of the path filename
 			pathDbSplit = os.path.basename(os.path.splitext(path)[0]).split('_')
-			extractorPaths = glob.glob(os.path.join(
-				PATH_EXTRACTORS, f'{pathDbSplit[0].lower()}.*'))
+			extractorPaths = glob.glob(
+				str(PATH_EXTRACTORS / f'{pathDbSplit[0].lower()}.*'))
 			for extrPath in extractorPaths:
 				if os.path.splitext(extrPath.lower())[1] in ('.yml', '.yaml'):
 					# case-insensitive match for YAML extension

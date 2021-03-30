@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import os
 import io
 import logging
+import pathlib
 
 from flask import Flask, request, jsonify
 import pandas as pd
@@ -21,7 +21,7 @@ def findOverlaps(data):
 		df = pd.read_csv(
 			io.StringIO(val), sep=',', index_col=False, dtype=str,
 			na_filter=False)
-		extractorPath = os.path.join(
+		extractorPath = pathlib.Path(
 			'citation-overlap', medline_embase_scopus.PATH_EXTRACTORS,
 			f'{key}.yml')
 		app.logger.info(path)

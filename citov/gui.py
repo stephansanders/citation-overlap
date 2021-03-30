@@ -150,7 +150,8 @@ class CiteOverlapGUI(HasTraits):
 			Item(
 				"_extractor", label="Extractor",
 				editor=CheckListEditor(
-					name="object._extractorNames.selections")),
+					name="object._extractorNames.selections",
+					format_func=lambda x: x)),
 		),
 		Item('_overlapBtn', show_label=False),
 		HGroup(
@@ -191,8 +192,8 @@ class CiteOverlapGUI(HasTraits):
 		# populate drop-down of available extractors
 		self._extractorNames = TraitsList()
 		extractorNames = [self._DEFAULT_EXTRACTOR]
-		extractorNames.extend(glob.glob(
-			os.path.join(medline_embase_scopus.PATH_EXTRACTORS, "*")))
+		extractorNames.extend([os.path.basename(f) for f in glob.glob(
+			str(medline_embase_scopus.PATH_EXTRACTORS / "*"))])
 		self._extractorNames.selections = extractorNames
 		self._extractor = self._extractorNames.selections[0]
 
@@ -285,9 +286,8 @@ class CiteOverlapGUI(HasTraits):
 			# auto-select extractor based on given database
 			if extractor:
 				# use given extractor
-				extractorPath = os.path.join(
-					medline_embase_scopus.PATH_EXTRACTORS,
-					extractor.value)
+				extractorPath = medline_embase_scopus.PATH_EXTRACTORS / \
+					extractor.value
 			else:
 				# defer finding extractor to the extractor function
 				extractorPath = None
