@@ -9,7 +9,7 @@ config = {
 	"author": "Stephan Sanders Lab",
 	"url": "https://github.com/stephansanders/citation-overlap",
 	"author_email": "",
-	"version": "1.0.0",
+	"version": "0.9.0",
 	"packages": setuptools.find_packages(),
 	"scripts": [],
 	"python_requires": ">=3.6",
