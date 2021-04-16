@@ -166,7 +166,7 @@ class CiteOverlapGUI(HasTraits):
 
 	# tabbed viewer of tables
 	_tableView = Tabbed(
-		Item('_medline', editor=_medlineTable, show_label=False, width=1200),
+		Item('_medline', editor=_medlineTable, show_label=False, width=1000),
 		Item('_embase', editor=_embaseTable, show_label=False),
 		Item('_scopus', editor=_scopusTable, show_label=False),
 		Item('_overlaps', editor=_outputTable, show_label=False),
@@ -178,7 +178,7 @@ class CiteOverlapGUI(HasTraits):
 			_controlsPanel,
 			_tableView,
 		),
-		width=1500,
+		width=1300,  # also influenced by _tableView width
 		height=800,
 		title='Citation Overlap',
 		resizable=True,
