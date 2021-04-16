@@ -207,7 +207,11 @@ class CiteOverlapGUI(HasTraits):
 		self._exportSepNames.selections = list(self._EXPORT_SEPS.keys())
 		self._exportSep = self._exportSepNames.selections[0]
 
+		# extractor instance
 		self.dbExtractor = medline_embase_scopus.DbExtractor()
+		
+		# last opened directory
+		self._save_dir = None
 
 	@staticmethod
 	def _df_to_cols(df):
@@ -285,6 +289,7 @@ class CiteOverlapGUI(HasTraits):
 			# file inaccessible, or manually edited, non-accessible path
 			self._statusBarMsg = f'{path} could not be found, skipping'
 			return None
+		self._save_dir = os.path.dirname(path)
 
 		extractorPath = self._extractor
 		if extractorPath is self._DEFAULT_EXTRACTOR:
@@ -331,8 +336,7 @@ class CiteOverlapGUI(HasTraits):
 			print(msg)
 			print(e)
 
-	@staticmethod
-	def _get_save_path(default_path):
+	def _get_save_path(self, default_path):
 		"""Get a save path from the user through a file dialog.
 
 		Args:
@@ -345,6 +349,10 @@ class CiteOverlapGUI(HasTraits):
 			FileNotFoundError: User canceled file selection.
 
 		"""
+		if self._save_dir:
+			# use directory of last chosen import file
+			default_path = os.path.join(self._save_dir, default_path)
+		
 		# open a PyFace file dialog in save mode
 		save_dialog = FileDialog(action="save as", default_path=default_path)
 		if save_dialog.open() == OK:
