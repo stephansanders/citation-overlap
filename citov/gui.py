@@ -304,6 +304,9 @@ class CiteOverlapGUI(HasTraits):
 			# extract file
 			df, dbName = self.dbExtractor.extractDb(path, extractorPath)
 			self._statusBarMsg = f'Imported file from {path}'
+			
+			# reset extractor to auto
+			self._extractor = self._DEFAULT_EXTRACTOR
 			return df
 		except FileNotFoundError as e:
 			self._statusBarMsg = str(e)
