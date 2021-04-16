@@ -190,11 +190,15 @@ class CiteOverlapGUI(HasTraits):
 		"""Initialize the GUI."""
 		super().__init__()
 
-		# populate drop-down of available extractors
+		# populate drop-down of available extractors from directory of
+		# extractors, displaying only basename but keeping dict with full path
 		self._extractorNames = TraitsList()
 		extractorNames = [self._DEFAULT_EXTRACTOR]
-		extractorNames.extend([os.path.basename(f) for f in glob.glob(
-			str(medline_embase_scopus.PATH_EXTRACTORS / "*"))])
+		extractor_paths = glob.glob(
+			str(medline_embase_scopus.PATH_EXTRACTORS / "*"))
+		self._extractor_paths = {
+			os.path.basename(f): f for f in extractor_paths}
+		extractorNames.extend(self._extractor_paths.keys())
 		self._extractorNames.selections = extractorNames
 		self._extractor = self._extractorNames.selections[0]
 
@@ -292,6 +296,9 @@ class CiteOverlapGUI(HasTraits):
 			else:
 				# defer finding extractor to the extractor function
 				extractorPath = None
+		else:
+			# get full path for selected extractor
+			extractorPath = self._extractor_paths[extractorPath]
 
 		# extract file
 		df, dbName = self.dbExtractor.extractDb(path, extractorPath)
