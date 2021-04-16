@@ -312,13 +312,21 @@ class CiteOverlapGUI(HasTraits):
 	@on_trait_change('_overlapBtn')
 	def findOverlaps(self):
 		"""Find overlaps."""
-		df = self.dbExtractor.combineOverlaps()
-		if df is None:
-			return
-		self._overlapsAdapter._widths, self._overlapsAdapter.columns, \
-			self._overlaps = self._df_to_cols(df)
-		self.select_sheet_tab = SheetTabs.OVERLAPS.value
-		self._statusBarMsg = 'Found overlaps across databases'
+		try:
+			df = self.dbExtractor.combineOverlaps()
+			if df is None:
+				return
+			self._overlapsAdapter._widths, self._overlapsAdapter.columns, \
+				self._overlaps = self._df_to_cols(df)
+			self.select_sheet_tab = SheetTabs.OVERLAPS.value
+			self._statusBarMsg = 'Found overlaps across databases'
+		except TypeError as e:
+			# TODO: catch additional errors that may occur with overlaps
+			msg = 'An erorr occurred while finding overlaps across databases.' \
+				' Please try again, or check the logs for more details.'
+			self._statusBarMsg = msg
+			print(msg)
+			print(e)
 
 	@staticmethod
 	def _get_save_path(default_path):
