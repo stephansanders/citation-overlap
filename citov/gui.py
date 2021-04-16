@@ -300,10 +300,14 @@ class CiteOverlapGUI(HasTraits):
 			# get full path for selected extractor
 			extractorPath = self._extractor_paths[extractorPath]
 
-		# extract file
-		df, dbName = self.dbExtractor.extractDb(path, extractorPath)
-		self._statusBarMsg = f'Imported file from {path}'
-		return df
+		try:
+			# extract file
+			df, dbName = self.dbExtractor.extractDb(path, extractorPath)
+			self._statusBarMsg = f'Imported file from {path}'
+			return df
+		except FileNotFoundError as e:
+			self._statusBarMsg = str(e)
+		return None
 
 	@on_trait_change('_overlapBtn')
 	def findOverlaps(self):

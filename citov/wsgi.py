@@ -26,10 +26,13 @@ def findOverlaps(data):
 			f'{key}.yml')
 		app.logger.info(path)
 		app.logger.info(extractorPath)
-		df, dbName = dbExtractor.extractDb(path, extractorPath, df)
-		app.logger.info(dbName)
-		app.logger.info(df.head())
-		dfs[key] = df
+		try:
+			df, dbName = dbExtractor.extractDb(path, extractorPath, df)
+			app.logger.info(dbName)
+			app.logger.info(df.head())
+			dfs[key] = df
+		except FileNotFoundError as e:
+			app.logger.error(e)
 	dfs['overlaps'] = dbExtractor.combineOverlaps()
 	return dfs
 

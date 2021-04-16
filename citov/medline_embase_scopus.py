@@ -207,6 +207,9 @@ class DbExtractor:
 			:obj:`pd.DataFrame`, str: The extracted database as a data frame
 			and the name of database, or None for each if an appropriate
 			extractor was not found.
+		
+		Raises:
+			FileNotFound: If an appropriate extractor file was not found.
 
 		"""
 		if not extractorPath:
@@ -221,8 +224,6 @@ class DbExtractor:
 					extractorPath = extrPath
 					break
 
-		dbName = None
-		df_out = None
 		if extractorPath and os.path.exists(extractorPath):
 			# extract database file contents
 			print(f'Loading extractor from "{extractorPath}" for "{path}"')
@@ -246,7 +247,7 @@ class DbExtractor:
 				self.globalJournalKeyDict, headerMainId)
 			self.dfsParsed[dbName] = df_out
 		else:
-			print(f'Could not find extrator for "{path}"')
+			raise FileNotFoundError(f'Could not find extrator for "{path}"')
 		return df_out, dbName
 
 	def combineOverlaps(self):
@@ -1560,7 +1561,10 @@ def main(paths, outputFileName=None):
 	# assume that paths are ordered by arg parser
 	dbExtractor = DbExtractor('\t')
 	for path in paths:
-		dbExtractor.extractDb(path)
+		try:
+			dbExtractor.extractDb(path)
+		except FileNotFoundError as e:
+			print(e)
 	dbExtractor.combineOverlaps()
 	dbExtractor.exportDataFrames(
 		outputFileName if outputFileName else dbExtractor.DEFAULT_OVERLAPS_PATH)
