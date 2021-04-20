@@ -37,9 +37,30 @@ class TableArrayAdapter(TabularAdapter):
 	MAX_WIDTH = 200
 	columns = []
 
+	def _get_bg_color(self):
+		"""Get background color to use for the current row."""
+		color = None
+		try:
+			group = self.item[self.columns.index('Group')]
+			if group == "none":
+				if self.row % 2 == 0:
+					# color even rows for rows that are not part of groups;
+					# assumes that "none" group rows are together
+					color = "darkBlue"
+			else:
+				if int(group) % 2 == 0:
+					# color all rows within each group that has an even group
+					# number; assumes that all group numbers are represented
+					# and sorted
+					color = "gray"
+		except ValueError:
+			pass
+		return color
+	
 	def get_width(self, object, trait, column):
 		"""Specify column widths."""
-		# cannot access public attributes for some reason
+		# dict of col_id to width; cannot access public attributes for some
+		# reason so set widths as private attribute
 		return self._widths[column]
 
 
