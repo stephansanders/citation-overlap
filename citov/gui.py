@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import math
 from collections import OrderedDict
 from enum import Enum, auto
 import glob
@@ -234,11 +235,14 @@ class CiteOverlapGUI(HasTraits):
 			colWidth = df[col].astype(str).str.len().tolist()
 			colWidth.append(len(col))
 			colWidths.append(colWidth)
-		# get max width (adjusted by factor) for each col but cap at max width
+		
+		# get max width for each col, taking log to slow the width increase
+		# for wider strings and capping at a max width
 		widths = {
-			i: min((max(c) * 13, TableArrayAdapter.MAX_WIDTH))
+			i: min((math.log1p(max(c)) * 40, TableArrayAdapter.MAX_WIDTH))
 			for i, c in enumerate(colWidths)
 		}
+		
 		return widths, cols, df.to_numpy()
 
 	@on_trait_change('_medlinePath')
