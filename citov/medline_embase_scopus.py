@@ -285,7 +285,7 @@ class DbExtractor:
 		# import records to data frame and sort with ungrouped rows at end,
 		# filling NA after the sort
 		df = pd.DataFrame.from_records(records)
-		df = df.sort_values(['Group', 'Sub'])
+		df = df.sort_values(['Group', 'Subgrp'])
 		df = df.fillna('none')  # replace np.nan
 		df['Group'] = df['Group'].astype(str).str.split('.', 1, expand=True)
 		print(df)
@@ -1496,7 +1496,8 @@ def findOverlaps(
 			('Paper_ID', medId),
 			('PMID', pmidHere),
 			('Group', group),
-			('Sub', sub),
+			('Subgrp', sub),
+			('Grp_Size', papersInGroup),
 			('Author_Names', procDict[medId][ExtractKeys.AUTHOR_NAMES]),
 			('Year', procDict[medId][ExtractKeys.YEAR]),
 			('Author_Year_Key', authorKeyHere),
@@ -1506,7 +1507,6 @@ def findOverlaps(
 			('Journal_Key', journalKey),
 			('Similar_Records', match),
 			('Similarity', matchSub),
-			('Papers_In_Group', papersInGroup),
 		))
 		dbDictsNames = list(dbDicts.keys())
 		dbDictsNames.append('First')
