@@ -11,7 +11,7 @@ from PyQt5 import QtWidgets, QtCore
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 from pyface.api import FileDialog, OK
 from traits.api import HasTraits, on_trait_change, Int, Str, Button, \
-	Array, push_exception_handler, File, List, Instance
+	Array, push_exception_handler, File, List, Instance, Property
 from traitsui.api import Handler, View, Item, HGroup, VGroup, Tabbed, \
 	HSplit, TabularEditor, FileEditor, CheckListEditor
 from traitsui.tabular_adapter import TabularAdapter
@@ -35,33 +35,77 @@ class TableArrayAdapter(TabularAdapter):
 	"""Table adapter for generic table output."""
 	#: int: max column width
 	MAX_WIDTH = 200
+	#: tuple: Sub-group background colors.
+	COLORS = (None, "gray", "darkBlue", "darkRed")
+	#: list[tuple[str, Any]]: Columns as ``(name, ID)``.
 	columns = []
-
-	def _get_bg_color(self):
-		"""Get background color to use for the current row."""
+	
+	# group and sub-group column properties, which are required along with
+	# corresponding functions when column IDs are given as strings rather than
+	# indices, to access individual cells since the group/sub-group cannot
+	# be accessed as attributes of the underlying data
+	group_text = Property
+	group_bg_color = Property
+	subgrp_text = Property
+	subgrp_bg_color = Property
+	
+	def _get_col(self, name):
+		"""Get column index with the given column name.
+		
+		Args:
+			name (str): Column name.
+		
+		Returns:
+			int: Index of found column in :attr:`columns`.
+		
+		Raises:
+			ValueError: if ``name`` was not found.
+		
+		"""
+		for i, col in enumerate(self.columns):
+			if col[0] == name:
+				return i
+		raise ValueError(f'Could not find column named: {name}')
+	
+	def _get_group_bg_color(self):
+		"""Get background color to use for the current Group column row."""
 		color = None
 		try:
-			group = self.item[self.columns.index('Group')]
-			if group == "none":
-				if self.row % 2 == 0:
-					# color even rows for rows that are not part of groups;
-					# assumes that "none" group rows are together
-					color = "darkBlue"
+			group = self.item[self._get_col('Group')]
+			if group == 'none':
+				color = 'darkCyan'
 			else:
 				if int(group) % 2 == 0:
 					# color all rows within each group that has an even group
 					# number; assumes that all group numbers are represented
 					# and sorted
-					color = "gray"
+					color = 'darkGreen'
 		except ValueError:
 			pass
 		return color
-	
+
+	def _get_subgrp_bg_color(self):
+		"""Get background color to use for the current Sub-group column row."""
+		try:
+			# cycle colors based on sub-group number
+			group = self.item[self._get_col('Subgrp')]
+			return self.COLORS[int(group) % len(self.COLORS)]
+		except ValueError:
+			pass
+		return None
+
 	def get_width(self, object, trait, column):
 		"""Specify column widths."""
 		# dict of col_id to width; cannot access public attributes for some
 		# reason so set widths as private attribute
 		return self._widths[column]
+	def _get_group_text(self):
+		"""Get Group column value."""
+		return self.item[self._get_col('Group')]
+
+	def _get_subgrp_text(self):
+		"""Get Sub-group column value."""
+		return self.item[self._get_col('Subgrp')]
 
 
 class SheetTabs(Enum):
@@ -244,18 +288,23 @@ class CiteOverlapGUI(HasTraits):
 			df (:obj:`pd.DataFrame`): Data frame to enter into table.
 
 		Returns:
-			dict[int, int], List[str], :obj:`np.ndarray`: Dictionary of
-			column indices to width, list of column strings, and data frame
-			as a Numpy arry.
+			dict[int, int], list[(str, Any)], :obj:`np.ndarray`: Dictionary of
+			column indices to width, list of column tuples given as
+			``(col_name, col_ID)``, and data frame as a Numpy arry.
 
 		"""
-		cols = df.columns.values.tolist()
 		colWidths = []
-		for col in cols:
+		colsIDs = []
+		for i, col in enumerate(df.columns.values.tolist()):
 			# get widths of all rows in column as well as header
 			colWidth = df[col].astype(str).str.len().tolist()
 			colWidth.append(len(col))
 			colWidths.append(colWidth)
+			
+			# use index as ID except for group/sub-group, where using a string
+			# allows the col along with row to be accessed for individual cells
+			colID = col.lower() if col in ('Group', 'Subgrp') else i
+			colsIDs.append((col, colID))
 		
 		# get max width for each col, taking log to slow the width increase
 		# for wider strings and capping at a max width
@@ -264,7 +313,7 @@ class CiteOverlapGUI(HasTraits):
 			for i, c in enumerate(colWidths)
 		}
 		
-		return widths, cols, df.to_numpy()
+		return widths, colsIDs, df.to_numpy()
 
 	@on_trait_change('_medlinePath')
 	def importMedline(self):
