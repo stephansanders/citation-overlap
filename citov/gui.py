@@ -387,7 +387,7 @@ class CiteOverlapGUI(HasTraits):
 			# reset extractor to auto
 			self._extractor = self._DEFAULT_EXTRACTOR
 			return df
-		except FileNotFoundError as e:
+		except (FileNotFoundError, SyntaxError) as e:
 			self._statusBarMsg = str(e)
 		return None
 

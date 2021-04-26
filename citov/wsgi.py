@@ -31,7 +31,7 @@ def findOverlaps(data):
 			app.logger.info(dbName)
 			app.logger.info(df.head())
 			dfs[key] = df
-		except FileNotFoundError as e:
+		except (FileNotFoundError, SyntaxError) as e:
 			app.logger.error(e)
 	dfs['overlaps'] = dbExtractor.combineOverlaps()
 	return dfs

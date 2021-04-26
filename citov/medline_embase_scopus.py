@@ -6,7 +6,6 @@
 
 from enum import Enum
 from collections import OrderedDict
-import csv # CSV files
 import glob
 import os
 import re # regex
@@ -15,6 +14,7 @@ import argparse # arguments parser
 import jellyfish # string comparison # pip3 install jellyfish
 #import hdbscan # pip3 install hdbscan
 import pandas as pd
+from pandas.errors import ParserError
 import yaml
 
 from citov import config
@@ -239,8 +239,11 @@ class DbExtractor:
 					break
 			headerMainId = 'Embase_ID' if dbEnum is DbNames.SCOPUS else None
 			if df is None:
-				df = pd.read_csv(
-					path, index_col=False, dtype=str, na_filter=False)
+				try:
+					df = pd.read_csv(
+						path, index_col=False, dtype=str, na_filter=False)
+				except ParserError:
+					raise SyntaxError(f'Could not parse "{path} during import')
 			self.dbsParsed[dbName], df_out = processDatabase(
 				path, df, dbName, extractor, self.globalPmidDict,
 				self.globalAuthorKeyDict, self.globalTitleMinDict,
@@ -1563,7 +1566,7 @@ def main(paths, outputFileName=None):
 	for path in paths:
 		try:
 			dbExtractor.extractDb(path)
-		except FileNotFoundError as e:
+		except (FileNotFoundError, SyntaxError) as e:
 			print(e)
 	dbExtractor.combineOverlaps()
 	dbExtractor.exportDataFrames(
