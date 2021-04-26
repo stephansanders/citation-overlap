@@ -443,8 +443,10 @@ class CiteOverlapGUI(HasTraits):
 		try:
 			save_path = self._get_save_path(
 				self.dbExtractor.DEFAULT_OVERLAPS_PATH)
-			msgs = self.dbExtractor.exportDataFrames(save_path)
-			self._statusBarMsg = ", ".join(msgs)
+			self.dbExtractor.exportDataFrames(save_path)
+			self._statusBarMsg = (
+				f'Saved "{os.path.basename(save_path)}" and filtered tables to:'
+				f' {os.path.dirname(save_path)}')
 		except FileNotFoundError:
 			print("Skipping file save")
 
