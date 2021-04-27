@@ -46,15 +46,28 @@ def add_file_handler(logger, path, backups=5):
 	# create a rotations file handler to manage number of backups while
 	# manually managing rollover based on file presence rather than size
 	pathl.parent.mkdir(parents=True, exist_ok=True)
-	handler_file = handlers.RotatingFileHandler(path, backupCount=backups)
+	i = 0
+	handler_file = None
+	while handler_file is None:
+		try:
+			path_log = pathl if i == 0 else \
+				f'{pathl.parent / pathl.stem}{i}{pathl.suffix}'
+			logger.debug(f'Trying logger path: {path_log}')
+			handler_file = handlers.RotatingFileHandler(
+				path_log, backupCount=backups)
+			if roll:
+				# create a new log file if exists, backing up the old one
+				handler_file.doRollover()
+		except (PermissionError, FileNotFoundError) as e:
+			logger.debug(e)
+			handler_file = None
+			i += 1
+
 	handler_file.setLevel(logger.level)
 	handler_file.setFormatter(logging.Formatter(
 		'%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 	logger.addHandler(handler_file)
 
-	if roll:
-		# create a new log file if exists, backing up the old one
-		handler_file.doRollover()
 	return logger
 
 
