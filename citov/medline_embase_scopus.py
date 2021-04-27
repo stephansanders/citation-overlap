@@ -1526,26 +1526,41 @@ def parseArgs():
 		description=
 		'Find overlaps between articles downloaded from Medline, Embase, '
 		'and Scopus')
-	parser.add_argument('-m', '--medline', type=str, help='Medline CSV file')
-	parser.add_argument('-e', '--embase', type=str, help='Embase CSV file')
-	parser.add_argument('-s', '--scopus', type=str, help='Scopus CSV file')
 	parser.add_argument(
-		'-f', '--first', type=str, help='Initial search CSV file')
+		'cit_lists', nargs="*", help='Citation lists auto-detected by filename')
+	parser.add_argument(
+		'-m', '--medline', nargs="*", type=str, help='Medline CSV file')
+	parser.add_argument(
+		'-e', '--embase', nargs="*", type=str, help='Embase CSV file')
+	parser.add_argument(
+		'-s', '--scopus', nargs="*", type=str, help='Scopus CSV file')
 	parser.add_argument(
 		'-o', '--out', type=str, help='Name and location of the output file')
 	parser.add_argument(
 		'-d', '--debug', action='store_true', help='Debugging function')
 	args = parser.parse_args()
-	paths = []
+	
+	# parse input paths to the appropriate database extractor
+	paths = dict.fromkeys(DefaultExtractors, None)
 	outputFileName = None
+	if args.cit_lists:
+		# paths given without a parameter are auto-detected
+		paths['auto'] = args.cit_lists
+		print(f'Set citation lists for auto-detection by filename: {args.cit_lists}')
 	if args.medline:
-		paths.append(args.medline)
+		paths[DefaultExtractors.MEDLINE] = args.medline
+		print(f'Set Medline citation lists: {args.medline}')
 	if args.embase:
-		paths.append(args.embase)
+		paths[DefaultExtractors.EMBASE] = args.embase
+		print(f'Set Embase citation lists: {args.embase}')
 	if args.scopus:
-		paths.append(args.scopus)
+		paths[DefaultExtractors.SCOPUS] = args.scopus
+		print(f'Set Scopus citation lists: {args.scopus}')
+	
 	if args.out:
+		# parse output file path
 		outputFileName = args.out
+	
 	return paths, outputFileName
 
 
@@ -1553,21 +1568,34 @@ def main(paths, outputFileName=None):
 	"""Extract database TSV files into dicts and find citation overlaps.
 
 	Args:
-		paths (List[str]): Input file paths.
+		paths (dict[Any, str]): Dictionary of extractor Enums from
+			:class:`DefaultExtractors` to input file paths. Any key not
+			in this Enum class is treated as paths for auto-detection.
 		outputFileName (str): Name of output file; defaults to None to use
 			a default name.
 
 	Returns:
-		:obj:`pd.DataFrame`: Combined citations with overlaps as a data frame.
+		:class:`pandas.DataFrame`: Combined citations with overlaps as a data
+		frame.
 
 	"""
 	# assume that paths are ordered by arg parser
 	dbExtractor = DbExtractor('\t')
-	for path in paths:
-		try:
-			dbExtractor.extractDb(path)
-		except (FileNotFoundError, SyntaxError) as e:
-			print(e)
+	for extractor, paths in paths.items():
+		if paths is None:
+			continue
+		extractorPath = None  # auto-detect extractor
+		if extractor in DefaultExtractors:
+			# use extractor specified by key
+			extractorPath = PATH_EXTRACTORS / extractor.value
+		for path in paths:
+			try:
+				# extract citation list with the given extractor
+				dbExtractor.extractDb(path, extractorPath)
+			except (FileNotFoundError, SyntaxError) as e:
+				print(e)
+	
+	# find overlaps and export merged and filtered tables
 	dbExtractor.combineOverlaps()
 	dbExtractor.exportDataFrames(
 		outputFileName if outputFileName else dbExtractor.DEFAULT_OVERLAPS_PATH)
