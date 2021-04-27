@@ -94,7 +94,7 @@
 
 
   ; uninstaller page
-  !define MUI_WELCOMEPAGE_TEXT "Thanks for using ${APP_NAME}. We will uninstall ${APP_NAME}. Hope to see you again."
+  !define MUI_WELCOMEPAGE_TEXT "Thanks for using ${APP_NAME}. Hope to see you again."
   !insertmacro MUI_UNPAGE_WELCOME
   !insertmacro MUI_UNPAGE_CONFIRM
   !insertmacro MUI_UNPAGE_INSTFILES
@@ -121,9 +121,9 @@ Section "CitationOverlap" SecApp
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
   ; write apps add/remove descriptions
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" \
-                 "DisplayName" "$APP_DESC"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" \
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" \
+                 "DisplayName" "${APP_DESC}"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" \
                  "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
 
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
@@ -132,7 +132,7 @@ Section "CitationOverlap" SecApp
     ; need to set shell var context to appear in all users
     ;SetShellVarContext all
     CreateDirectory "$SMPROGRAMS\$StartMenuFolder"
-    CreateShortCut "$SMPROGRAMS\$StartMenuFolder\${APP_NAME}.lnk" "$INSTDIR\${APP_NAME}.exe" "" "$INSTDIR\images\magmap.ico" 0 "SW_SHOWNORMAL" "" "$APP_DESC"
+    CreateShortCut "$SMPROGRAMS\$StartMenuFolder\${APP_NAME}.lnk" "$INSTDIR\${APP_NAME}.exe" "" "" 0 "SW_SHOWNORMAL" "" "${APP_DESC}"
     CreateShortCut "$SMPROGRAMS\$StartMenuFolder\${APP_NAME} Website.lnk" "https://github.com/stephansanders/citation-overlap" "" "" 0
     CreateShortCut "$SMPROGRAMS\$StartMenuFolder\Uninstall.lnk" "$INSTDIR\Uninstall.exe" ""
 
@@ -145,7 +145,7 @@ SectionEnd
 ; languages
 
   ; language strings
-  LangString DESC_MAGMAP ${LANG_ENGLISH} "$APP_DESC"
+  LangString DESC_MAGMAP ${LANG_ENGLISH} "${APP_DESC}"
 
   ; assign language strings to sections
   !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
@@ -178,6 +178,6 @@ Section "Uninstall"
   ; remove installation directory path to avoid reinstalling to old version num
   DeleteRegKey HKCU "Software\${APP_NAME_VER}"
   DeleteRegKey /ifempty HKCU "Software\${APP_NAME_VER}"
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}"
+  DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}"
 
 SectionEnd
