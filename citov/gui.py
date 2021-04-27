@@ -169,7 +169,7 @@ class CiteOverlapGUI(HasTraits):
 	_overlapBtn = Button('Find Overlaps')
 
 	# table export
-	_exportBtn = Button('Export tables')
+	_exportBtn = Button('Export Tables')
 	_exportSep = Str
 	_exportSepNames = Instance(TraitsList)
 	_statusBarMsg = Str
@@ -206,13 +206,13 @@ class CiteOverlapGUI(HasTraits):
 	_controlsPanel = VGroup(
 		VGroup(
 			Item(
-				'_medlinePath', label='Pubmed/Medline file', style='simple',
+				'_medlinePath', label='PubMed/MEDLINE file', style='simple',
 				editor=FileEditor(allow_dir=False)),
 			Item(
 				'_embasePath', label='Embase file', style='simple',
 				editor=FileEditor(allow_dir=False)),
 			Item(
-				'_scopusPath', label='SCOPUS file', style='simple',
+				'_scopusPath', label='Scopus file', style='simple',
 				editor=FileEditor(allow_dir=False)),
 			Item(
 				"_extractor", label="Extractor",
@@ -367,7 +367,7 @@ class CiteOverlapGUI(HasTraits):
 
 		extractorPath = self._extractor
 		if extractorPath is self._DEFAULT_EXTRACTOR:
-			# auto-select extractor based on given database
+			# auto-select extractor based on given database, not on path
 			if extractor:
 				# use given extractor
 				extractorPath = medline_embase_scopus.PATH_EXTRACTORS / \
