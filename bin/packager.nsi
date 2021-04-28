@@ -28,7 +28,7 @@
 
   ; application name and output installer file
   Name "${APP_NAME} ${VER}"
-  OutFile "${BASEDIR}\${APP_NAME_VER}-installer.exe"
+  OutFile "${BASEDIR}\${APP_NAME_VER}-win-installer.exe"
 
   ; default installation folder, overriding with registry key if available
   InstallDir "$LOCALAPPDATA\${APP_NAME}\${APP_NAME_VER}"
