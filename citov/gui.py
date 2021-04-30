@@ -206,6 +206,11 @@ class CiteOverlapGUI(HasTraits):
 	_controlsPanel = VGroup(
 		VGroup(
 			Item(
+				"_extractor", label="Extractor",
+				editor=CheckListEditor(
+					name="object._extractorNames.selections",
+					format_func=lambda x: x)),
+			Item(
 				'_medlinePath', label='PubMed/MEDLINE file', style='simple',
 				editor=FileEditor(allow_dir=False)),
 			Item(
@@ -214,11 +219,6 @@ class CiteOverlapGUI(HasTraits):
 			Item(
 				'_scopusPath', label='Scopus file', style='simple',
 				editor=FileEditor(allow_dir=False)),
-			Item(
-				"_extractor", label="Extractor",
-				editor=CheckListEditor(
-					name="object._extractorNames.selections",
-					format_func=lambda x: x)),
 		),
 		Item('_overlapBtn', show_label=False),
 		HGroup(
