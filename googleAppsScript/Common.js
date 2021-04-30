@@ -23,8 +23,8 @@ function onOpen(e) {
   var menu = SpreadsheetApp.getUi().createAddonMenu();
   menu.addItem('Set up sheets', 'setupSheets');
   menu.addItem('Find overlaps', 'findOverlaps');
-  menu.addItem('Remove processed sheets', 'clearSheets');
   menu.addItem('Resize processed columns', 'resizeColumns');
+  menu.addItem('Remove processed sheets', 'clearSheets');
 //  if (e && e.authMode == ScriptApp.AuthMode.NONE) {
 //  } else {
 //    // TODO: add functionality requiring authoriziation
