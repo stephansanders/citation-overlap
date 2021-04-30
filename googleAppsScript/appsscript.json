@@ -1,20 +1,14 @@
 {
   "timeZone": "Asia/Hong_Kong",
-  "dependencies": {
-  },
   "exceptionLogging": "STACKDRIVER",
   "runtimeVersion": "V8",
-  "oauthScopes": [
-    "https://www.googleapis.com/auth/spreadsheets.currentonly",
-    "https://www.googleapis.com/auth/script.external_request"
-  ],
   "addOns": {
     "common": {
-      "name": "CitationOverlap",
+      "name": "Citation-Overlap",
       "logoUrl": "https://sanderslab.github.io/images/Lab_Logo_v6c.png",
       "useLocaleFromApp": true,
       "homepageTrigger": {
-        "runFunction": "onHomepage",
+        "runFunction": "onOpen",
         "enabled": true
       }
     },
@@ -26,5 +20,12 @@
         }
       ]
     }
-  }
+  },
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/spreadsheets.currentonly"
+  ],
+  "urlFetchWhitelist": [
+    "https://yodavid.pythonanywhere.com/"
+  ]
 }
