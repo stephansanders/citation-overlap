@@ -4,7 +4,7 @@
 import pathlib
 import sys
 
-from citov import config, gui, logs
+from citov import config, logs, medline_embase_scopus
 
 
 def main():
@@ -15,8 +15,15 @@ def main():
 		logger, pathlib.Path(config.user_app_dirs.user_data_dir) / "out.log")
 	sys.excepthook = logs.log_uncaught_exception
 	
-	# lauch graphical interface
-	gui.main()
+	# parse command-line args
+	paths, outputFileName = medline_embase_scopus.parseArgs()
+	if any(paths.values()):
+		# run CLI if any database args given
+		medline_embase_scopus.main(paths, outputFileName)
+	else:
+		# launch graphical interface
+		from citov import gui
+		gui.main()
 
 
 if __name__ == "__main__":
