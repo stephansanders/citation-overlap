@@ -1,0 +1,98 @@
+<script>
+/** 
+ * Citation-Overlap JavaScript
+ */
+
+// Set up main page with listeners for each ID.
+function setupHomepage() {
+
+  // listener to set up blank sheets for default databases
+  $('#setup_sheets').click(function(event) {
+    loadingFeedback("setup_sheets");
+    google.script.run.withSuccessHandler(onSetupSheetsSuccess)
+        .withFailureHandler(onSetupSheetsFailure)
+        .setupSheets();
+  });
+  
+  // listener to find overlaps
+  $('#find_overlaps').click(function(event) {
+    loadingFeedback("find_overlaps");
+    google.script.run.withSuccessHandler(onFindOverlapsSuccess)
+        .withFailureHandler(onFindOverlapsFailure)
+        .findOverlaps();
+  });
+  
+  // listener to auto-fit columns
+  $('#resize_sheets').click(function(event) {
+    loadingFeedback("resize_sheets");
+    google.script.run.withSuccessHandler(onResizeSheetsSuccess)
+        .withFailureHandler(onResizeSheetsFailure)
+        .resizeColumns();
+  });
+  
+  // listener to reset by removing processed sheets
+  $('#remove_sheets').click(function(event) {
+    loadingFeedback("remove_sheets");
+    google.script.run.withSuccessHandler(onRemoveSheetsSuccess)
+        .withFailureHandler(onRemoveSheetsFailure)
+        .clearSheets();
+  });
+}
+
+// Show generic feedback when initiating an operation.
+function loadingFeedback(name) {
+  $('#' + name + '_feedback').text('Loading...');
+  $('#' + name + '_spinner').show();
+}
+
+// handler for setting up sheets
+function onSetupSheetsSuccess(files) {
+  $('#setup_sheets_spinner').hide();
+  $('#setup_sheets_feedback').text('Set up sheets for database citation list import.');
+}
+
+// handler for error when setting up sheets
+function onSetupSheetsFailure(err) {
+  $('#setup_sheets_spinner').hide();
+  $('#setup_sheets_feedback').text(err.message);
+}
+
+// handler for finding overlaps
+function onFindOverlapsSuccess(files) {
+  $('#find_overlaps_spinner').hide();
+  $('#find_overlaps_feedback').text('Found overlaps and inserted filtered database sheets.');
+}
+
+// handler for error when finding overlaps
+function onFindOverlapsFailure(err) {
+  $('#find_overlaps_spinner').hide();
+  $('#find_overlaps_feedback').text(err.message);
+}
+
+// handler for resizing processed sheets
+function onResizeSheetsSuccess(files) {
+  $('#resize_sheets_spinner').hide();
+  $('#resize_sheets_feedback').text('Resized filtered and overlaps sheets.');
+}
+
+// handler for error when resizing columns
+function onResizeSheetsFailure(err) {
+  $('#resize_sheets_spinner').hide();
+  $('#resize_sheets_feedback').text(err.message);
+}
+
+// handler for removing processed sheets
+function onRemoveSheetsSuccess(files) {
+  $('#remove_sheets_spinner').hide();
+  $('#remove_sheets_feedback').text('Removed filtered and overlaps sheets; ready to run again.');
+}
+
+// handler for error when removing processed sheets
+function onRemoveSheetsFailure(err) {
+  $('#remove_sheets_spinner').hide();
+  $('#remove_sheets_feedback').text(err.message);
+}
+
+setupHomepage();
+
+</script>

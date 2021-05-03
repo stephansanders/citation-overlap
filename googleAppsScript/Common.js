@@ -1,6 +1,6 @@
 /**
  * Citation Overlap Google Apps Script Add-On
- * Stephan Sanders Lab, 2020
+ * Stephan Sanders Lab, 2020, 2021
  */
 
 // database names
@@ -25,11 +25,29 @@ function onOpen(e) {
   menu.addItem('Find overlaps', 'findOverlaps');
   menu.addItem('Resize processed columns', 'resizeColumns');
   menu.addItem('Remove processed sheets', 'clearSheets');
+  menu.addItem('Show sidebar', 'showSidebar');
 //  if (e && e.authMode == ScriptApp.AuthMode.NONE) {
 //  } else {
 //    // TODO: add functionality requiring authoriziation
 //  }
   menu.addToUi();
+}
+
+function showSidebar() {
+  var html = HtmlService.createTemplateFromFile("Sidebar").evaluate();
+  html.setTitle("Citation-Overlap");
+  SpreadsheetApp.getUi().showSidebar(html);
+}
+
+/**
+ * Includes additional files, such as CSS and JS files.
+ * @param {string} filename file to include
+ * @return {HtmlOutput} html output
+ */
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename)
+      .setSandboxMode(HtmlService.SandboxMode.IFRAME)
+      .getContent();
 }
 
 /**

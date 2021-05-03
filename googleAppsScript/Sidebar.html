@@ -1,0 +1,86 @@
+<!-- Citation-Overlap Web App
+-->
+<html>
+  <body>
+    <!-- Load custom style sheet and Google-themed styling -->
+    <?!= include('StyleSheet'); ?>
+    <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+
+    <div id="main_content">
+
+      <!-- Usage instructions -->
+      <h1>Citation-Overlap</h1>
+      
+      <p class="instructions">Citation-Overlap is a tool to identify similar or duplicate citations from multiple bibliographic database searches. It imports lists from MEDLINE, Embase, and other databases, integrates them into a common format, and measures citation similarity to output a combined list showing duplicates with similarity scores. This tool facilitates deduplication for systematic reviews, meta-analyses, and other comprehensive literature searches..</p>
+
+      <p class="instructions"><a href="https://github.com/stephansanders/citation-overlap" class="to_faq">Learn more on our GitHub page.</a></p>
+      
+      
+      <ol class="instructions">
+      
+      <!-- Set up sheets -->
+      <li>Add blank sheets for each database.</li>
+      <p class="instructions">By default, we add sheets for MEDLINE, Embase, and Scopus.</p>
+      <div class="block">
+      <button class="blue" id="setup_sheets">Set up sheets</button>
+      </div>
+      
+      <div id="files_output">
+      <img id="setup_sheets_spinner" src="http://textflex.com/progator/app/spinner.gif" style="display:none;">
+      <p id="setup_sheets_feedback" class="feedback"></p>
+      </div>
+      
+      
+      <!-- Instuctions on importing citation files -->
+      <li>Import your citation lists</li>
+      <p class="instructions">Go to the "File" menu and select "Import". Select your firist citation file exported from the databases. Choose the options to "Replace current sheet" and leave the rest of the options as their defaults. Repeat for the rest of your citation lists.</p>
+      
+      
+      <!-- Find citation overlaps -->
+      <li>Find overlapping citation</li>
+      <p class="instructions">Perform deduplication, which finds similarities among citations and groups potential duplicates. This step may take a few minutes to complete. As lists are filtered, they will be inserted as new sheets, followed by the "overlaps" sheet when deduplication is complete.</p>
+      <div class="block">
+      <button class="blue" id="find_overlaps">Find overlaps</button>
+      </div>
+      
+      <div id="files_output">
+      <img id="find_overlaps_spinner" src="http://textflex.com/progator/app/spinner.gif" style="display:none;">
+      <p id="find_overlaps_feedback" class="feedback"></p>
+      </div>
+      
+      
+      <!-- Auto-fit columns -->
+      <li>(Optional) Auto-fit column widths of the new sheets.</li>
+      <p class="instructions">Resize columns to fit text up to a max width. This step may take several minutes to complete.</p>
+      <div class="block">
+      <button class="blue" id="resize_sheets">Resize processed sheets</button>
+      </div>
+      
+      <div id="files_output">
+      <img id="resize_sheets_spinner" src="http://textflex.com/progator/app/spinner.gif" style="display:none;">
+      <p id="resize_sheets_feedback" class="feedback"></p>
+      </div>
+      
+      
+      <!-- Remove processed sheets -->
+      <li>(Optional) Reset by removing new sheets.</li>
+      <p class="instructions">To rerun deduplication, remove the "clean" and "overlaps" sheets.</p>
+      <div class="block">
+      <button class="blue" id="remove_sheets">Remove processed sheets</button>
+      </div>
+      
+      <div id="files_output">
+      <img id="remove_sheets_spinner" src="http://textflex.com/progator/app/spinner.gif" style="display:none;">
+      <p id="remove_sheets_feedback" class="feedback"></p>
+      </div>
+      
+      </ol>
+    </div>
+      
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+    <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/themes/smoothness/jquery-ui.css" />
+    <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/jquery-ui.min.js"></script>
+
+    <?!= include('JavaScript'); ?>
+  </body>
+</html>
