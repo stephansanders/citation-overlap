@@ -245,8 +245,13 @@ class DbExtractor:
 			headerMainId = 'Embase_ID' if dbEnum is DbNames.SCOPUS else None
 			if df is None:
 				try:
+					# identify separator based on extension since auto-detection
+					# does not appear to work reliably for TSV files
+					ext = os.path.splitext(path)[1].lower()
+					sep = '\t' if ext == '.tsv' else ','
 					df = pd.read_csv(
-						path, index_col=False, dtype=str, na_filter=False)
+						path, index_col=False, dtype=str, na_filter=False,
+						sep=sep)
 				except ParserError as e:
 					_logger.exception(e)
 					raise SyntaxError(f'Could not parse "{path} during import')
@@ -1535,11 +1540,11 @@ def parseArgs():
 	parser.add_argument(
 		'cit_lists', nargs="*", help='Citation lists auto-detected by filename')
 	parser.add_argument(
-		'-m', '--medline', nargs="*", type=str, help='Medline CSV file')
+		'-m', '--medline', nargs="*", type=str, help='Medline CSV/TSV file')
 	parser.add_argument(
-		'-e', '--embase', nargs="*", type=str, help='Embase CSV file')
+		'-e', '--embase', nargs="*", type=str, help='Embase CSV/TSV file')
 	parser.add_argument(
-		'-s', '--scopus', nargs="*", type=str, help='Scopus CSV file')
+		'-s', '--scopus', nargs="*", type=str, help='Scopus CSV/TSV file')
 	parser.add_argument(
 		'-o', '--out', type=str, help='Name and location of the output file')
 	parser.add_argument(
