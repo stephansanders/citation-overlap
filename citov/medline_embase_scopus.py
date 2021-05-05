@@ -4,13 +4,15 @@
 #   -e embase_noTitle.csv -s scopus_all.csv
 # Author: Stephan Sanders
 
-from enum import Enum
+import argparse  # arguments parser
 from collections import OrderedDict
+from enum import Enum
 import glob
+import logging
 import os
-import re # regex
-import string # string manipulation
-import argparse # arguments parser
+import re  # regex
+import string  # string manipulation
+
 import jellyfish # string comparison # pip3 install jellyfish
 #import hdbscan # pip3 install hdbscan
 import pandas as pd
@@ -54,6 +56,9 @@ from citov import config
 
 #: str: Path to extractor specification folder.
 PATH_EXTRACTORS = config.app_dir / 'extractors'
+
+#: :class:`logging.Logger`: Logger for this module.
+_logger = logging.getLogger().getChild(__name__)
 
 
 class DefaultExtractors(Enum):
@@ -242,7 +247,8 @@ class DbExtractor:
 				try:
 					df = pd.read_csv(
 						path, index_col=False, dtype=str, na_filter=False)
-				except ParserError:
+				except ParserError as e:
+					_logger.exception(e)
 					raise SyntaxError(f'Could not parse "{path} during import')
 			self.dbsParsed[dbName], df_out = processDatabase(
 				path, df, dbName, extractor, self.globalPmidDict,
