@@ -21,11 +21,11 @@ MAX_COL_WIDTH = 300;
  */
 function onOpen(e) {
   var menu = SpreadsheetApp.getUi().createAddonMenu();
+  menu.addItem('Show sidebar', 'showSidebar');
   menu.addItem('Set up sheets', 'setupSheets');
   menu.addItem('Find overlaps', 'findOverlaps');
   menu.addItem('Resize processed columns', 'resizeColumns');
   menu.addItem('Remove processed sheets', 'clearSheets');
-  menu.addItem('Show sidebar', 'showSidebar');
 //  if (e && e.authMode == ScriptApp.AuthMode.NONE) {
 //  } else {
 //    // TODO: add functionality requiring authoriziation
