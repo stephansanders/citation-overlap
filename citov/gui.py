@@ -16,7 +16,7 @@ from traitsui.api import Handler, View, Item, HGroup, VGroup, Tabbed, \
 	HSplit, TabularEditor, FileEditor, CheckListEditor
 from traitsui.tabular_adapter import TabularAdapter
 
-from citov import medline_embase_scopus
+from citov import overlapper
 
 
 def main():
@@ -261,7 +261,7 @@ class CiteOverlapGUI(HasTraits):
 		self._extractorNames = TraitsList()
 		extractorNames = [self._DEFAULT_EXTRACTOR]
 		extractor_paths = glob.glob(
-			str(medline_embase_scopus.PATH_EXTRACTORS / "*"))
+			str(overlapper.PATH_EXTRACTORS / "*"))
 		self._extractor_paths = {
 			os.path.basename(f): f for f in extractor_paths}
 		extractorNames.extend(self._extractor_paths.keys())
@@ -274,7 +274,7 @@ class CiteOverlapGUI(HasTraits):
 		self._exportSep = self._exportSepNames.selections[0]
 
 		# extractor instance
-		self.dbExtractor = medline_embase_scopus.DbExtractor()
+		self.dbExtractor = overlapper.DbExtractor()
 		
 		# last opened directory
 		self._save_dir = None
@@ -319,7 +319,7 @@ class CiteOverlapGUI(HasTraits):
 	def importMedline(self):
 		"""Import a Medline file and display in table."""
 		df = self._importFile(
-			self._medlinePath, medline_embase_scopus.DefaultExtractors.MEDLINE)
+			self._medlinePath, overlapper.DefaultExtractors.MEDLINE)
 		if df is not None:
 			self._medlineAdapter._widths, self._medlineAdapter.columns, \
 				self._medline = self._df_to_cols(df)
@@ -329,7 +329,7 @@ class CiteOverlapGUI(HasTraits):
 	def importEmbase(self):
 		"""Import an Embase file and display in table."""
 		df = self._importFile(
-			self._embasePath, medline_embase_scopus.DefaultExtractors.EMBASE)
+			self._embasePath, overlapper.DefaultExtractors.EMBASE)
 		if df is not None:
 			self._embaseAdapter._widths, self._embaseAdapter.columns, \
 				self._embase = self._df_to_cols(df)
@@ -339,7 +339,7 @@ class CiteOverlapGUI(HasTraits):
 	def importScopus(self):
 		"""Import a SCOPUS file and display in table."""
 		df = self._importFile(
-			self._scopusPath, medline_embase_scopus.DefaultExtractors.SCOPUS)
+			self._scopusPath, overlapper.DefaultExtractors.SCOPUS)
 		if df is not None:
 			self._scopusAdapter._widths, self._scopusAdapter.columns, \
 				self._scopus = self._df_to_cols(df)
@@ -350,7 +350,7 @@ class CiteOverlapGUI(HasTraits):
 
 		Args:
 			path (str): Path to database file to import.
-			extractor (:obj:`medline_embase_scopus.DefaultExtractors`):
+			extract (:obj:`overlapper.DefaultExtractors`):
 				Enum of default extractor for the given database. Ignored
 				if :attr:`_extractor` is :const:`_DEFAULT_EXTRACTOR`.
 				Defaults to None to determine by :meth:`dbExtractor.extractDb`.
@@ -370,8 +370,8 @@ class CiteOverlapGUI(HasTraits):
 			# auto-select extractor based on given database, not on path
 			if extractor:
 				# use given extractor
-				extractorPath = medline_embase_scopus.PATH_EXTRACTORS / \
-					extractor.value
+				extractorPath = overlapper.PATH_EXTRACTORS / \
+				                extractor.value
 			else:
 				# defer finding extractor to the extractor function
 				extractorPath = None

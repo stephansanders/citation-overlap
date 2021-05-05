@@ -4,7 +4,7 @@
 import pathlib
 import sys
 
-from citov import config, logs, medline_embase_scopus
+from citov import config, logs, overlapper
 
 
 def main():
@@ -16,10 +16,10 @@ def main():
 	sys.excepthook = logs.log_uncaught_exception
 	
 	# parse command-line args
-	paths, outputFileName = medline_embase_scopus.parseArgs()
+	paths, outputFileName = overlapper.parseArgs()
 	if any(paths.values()):
 		# run CLI if any database args given
-		medline_embase_scopus.main(paths, outputFileName)
+		overlapper.main(paths, outputFileName)
 	else:
 		# launch graphical interface
 		from citov import gui

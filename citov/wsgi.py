@@ -7,14 +7,14 @@ import pathlib
 from flask import Flask, request, jsonify
 import pandas as pd
 
-from citov import medline_embase_scopus
+from citov import overlapper
 
-logging.basicConfig(filename='out.log',level=logging.INFO)
+logging.basicConfig(filename='out.log', level=logging.INFO)
 app = Flask(__name__)
 
 
 def findOverlaps(data):
-	dbExtractor = medline_embase_scopus.DbExtractor()
+	dbExtractor = overlapper.DbExtractor()
 	dfs = {}
 	for key, val in data.items():
 		path = f'{key}.csv'
@@ -22,7 +22,7 @@ def findOverlaps(data):
 			io.StringIO(val), sep=',', index_col=False, dtype=str,
 			na_filter=False)
 		extractorPath = pathlib.Path(
-			'citation-overlap', medline_embase_scopus.PATH_EXTRACTORS,
+			'citation-overlap', overlapper.PATH_EXTRACTORS,
 			f'{key}.yml')
 		app.logger.info(path)
 		app.logger.info(extractorPath)

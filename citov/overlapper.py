@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Description: Process Embase and Pubmed search results and find matches
-# Usage: python3 medline_embase_scopus.py -m pubmed_result.csv \
+# Usage: python3 overlapper.py -m pubmed_result.csv \
 #   -e embase_noTitle.csv -s scopus_all.csv
 # Author: Stephan Sanders
 
