@@ -123,3 +123,26 @@ def read_csv(path):
 	except ParserError as e:
 		_logger.exception(e)
 		raise SyntaxError(f'Could not parse "{path} during import')
+
+
+def merge_csvs(in_paths, out_path=None):
+	"""Combine and export multiple CSV files to a single CSV file.
+
+	Args:
+		in_paths (list[Union[str, :class:`Path`]]): List of paths to CSV/TSV
+			files to import as data frames and concatenate.
+		out_path (Union[str, :obj:`pathlib.Path`]): Output path; defaults to
+			None to not save the merged data frame.
+
+	Returns:
+		:class:`pandas.DataFrame`: Merged data frame.
+
+	"""
+	if not in_paths:
+		return None
+	dfs = [read_csv(path) for path in in_paths]
+	df = pd.concat(dfs)
+	if out_path is not None:
+		_logger.info(f'Saving merged CSV/TSVs to "{out_path}"')
+		df.to_csv(out_path, sep=get_file_sep(out_path))
+	return df

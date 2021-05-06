@@ -10,6 +10,7 @@ from enum import Enum
 import pathlib
 import re  # regex
 import string  # string manipulation
+import sys
 
 import jellyfish # string comparison # pip3 install jellyfish
 #import hdbscan # pip3 install hdbscan
@@ -1205,6 +1206,9 @@ def parseArgs():
 		'-x', '--extractors', nargs="*",
 		help='Folder path(s) of additional extractors')
 	parser.add_argument(
+		'-c', '--combine', nargs="*",
+		help='CSV/TSV file path(s) to combine')
+	parser.add_argument(
 		'-d', '--debug', action='store_true', help='Debugging function')
 	args = parser.parse_args()
 	
@@ -1224,8 +1228,19 @@ def parseArgs():
 	if args.scopus:
 		paths[DefaultExtractors.SCOPUS] = args.scopus
 		print(f'Set Scopus citation lists: {args.scopus}')
+
 	if args.extractors:
+		# add additional extractor directories
 		config.extractor_dirs.extend([pathlib.Path(p) for p in args.extractors])
+
+	if args.combine:
+		# combine files along rows
+		print(f'Combining citation lists and exiting: {args.combine}')
+		out_path = pathlib.Path(args.combine[0])
+		utils.merge_csvs(
+			args.combine,
+			out_path.parent / f'{out_path.stem}_combined{out_path.suffix}')
+		sys.exit()
 	
 	if args.out:
 		# parse output file path
