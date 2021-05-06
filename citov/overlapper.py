@@ -684,6 +684,7 @@ def subGroupV2(
 		idToDistance[idName] = {}
 
 	# Find the distances
+	journalWt = 20
 	for idNameOne in idList:
 		pOne = pDict[idNameOne]
 		aOne = aDict[idNameOne]
@@ -699,7 +700,6 @@ def subGroupV2(
 			if (idNameTwo not in idToDistance[idNameOne]
 					and idNameOne != idNameTwo):
 				# Pmid distance
-				distanceOut = 9999
 				if pOne == pTwo and pOne != 'NoPMID':
 					distanceOut = 100
 				elif pOne == 'NoPMID' or pTwo == 'NoPMID':
@@ -717,11 +717,18 @@ def subGroupV2(
 					titleMinDiffWeight = 30 - int(titleMinActualDiff / (
 							len(tOne) + len(tTwo)) * 30)
 
-					# Find the journal distance
-					journalKeyActualDiff = \
-						jellyfish.damerau_levenshtein_distance(jOne, jTwo)
-					journalKeyDiffWeight = 20 - int(journalKeyActualDiff / (
-							len(jOne) + len(jTwo)) * 20)
+					# Find the journal distance, defaulting to no difference
+					journalKeyDiffWeight = journalWt
+					if jOne and jTwo:
+						# compare lexical difference in journal keys
+						journalKeyActualDiff = \
+							jellyfish.damerau_levenshtein_distance(jOne, jTwo)
+						journalKeyDiffWeight = journalWt - int(
+							journalKeyActualDiff / (
+									len(jOne) + len(jTwo)) * journalWt)
+					elif jOne or jTwo:
+						# max difference since only one journal is present
+						journalKeyDiffWeight = 0
 
 					# Find the year distance
 					aOneList = aOne.split('|')
