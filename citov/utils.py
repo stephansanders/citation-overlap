@@ -1,6 +1,14 @@
 """Utility functions for Citation-Overlap."""
 
+import logging
+import pathlib
+
+import pandas as pd
+from pandas.errors import ParserError
 import yaml
+
+#: :class:`logging.Logger`: Logger for this module.
+_logger = logging.getLogger().getChild(__name__)
 
 
 def is_seq(val):
@@ -73,3 +81,45 @@ def load_yaml(path, strToClass=None):
 				doc = parse_enum(doc)
 			data.append(doc)
 	return data
+
+
+def get_file_sep(path):
+	"""Get separator for the given file extension.
+	
+	
+	
+	Args:p
+		path (Union[str, :class:`Path`]): File path from which the separator
+			will be determined.
+
+	Returns:
+		str: The file separator, which is `\t` if the extension of `path` is
+		`.tsv` and `,` for `.csv`. 
+
+	"""
+	return '\t' if pathlib.Path(path).suffix.lower() == '.tsv' else ','
+
+
+def read_csv(path):
+	"""Read a CSV or TSV file.
+	
+	Args:
+		path (Union[str, :class:`Path`]): Path to read.
+
+	Returns:
+		:class:`pandas.DataFrame`: File imported to a data frame.
+	
+	Raises:
+		SyntaxError: if `path` cannot be parsed.
+
+	"""
+	try:
+		# identify separator based on extension since auto-detection
+		# does not appear to work reliably for TSV files
+		df = pd.read_csv(
+			path, index_col=False, dtype=str, na_filter=False,
+			sep=get_file_sep(path))
+		return df
+	except ParserError as e:
+		_logger.exception(e)
+		raise SyntaxError(f'Could not parse "{path} during import')

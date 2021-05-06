@@ -7,7 +7,6 @@ from collections import OrderedDict
 from enum import Enum
 
 import pandas as pd
-from pandas.errors import ParserError
 
 from citov import config, overlapper, utils
 from citov.utils import load_yaml
@@ -200,16 +199,9 @@ class DbExtractor:
 			headerMainId = 'Embase_ID' if dbEnum is DbNames.SCOPUS else None
 			if df is None:
 				try:
-					# identify separator based on extension since auto-detection
-					# does not appear to work reliably for TSV files
-					ext = os.path.splitext(path)[1].lower()
-					sep = '\t' if ext == '.tsv' else ','
-					df = pd.read_csv(
-						path, index_col=False, dtype=str, na_filter=False,
-						sep=sep)
-				except ParserError as e:
-					_logger.exception(e)
-					raise SyntaxError(f'Could not parse "{path} during import')
+					df = utils.read_csv(path)
+				except SyntaxError as e:
+					raise e
 			self.dbsParsed[dbName], df_out = overlapper.processDatabase(
 				path, df, dbName, extractor, self.globalPmidDict,
 				self.globalAuthorKeyDict, self.globalTitleMinDict,
