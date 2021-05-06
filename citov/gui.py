@@ -16,7 +16,7 @@ from traitsui.api import Handler, View, Item, HGroup, VGroup, Tabbed, \
 	HSplit, TabularEditor, FileEditor, CheckListEditor
 from traitsui.tabular_adapter import TabularAdapter
 
-from citov import overlapper
+from citov import extractor, overlapper
 
 
 def main():
@@ -261,7 +261,7 @@ class CiteOverlapGUI(HasTraits):
 		self._extractorNames = TraitsList()
 		extractorNames = [self._DEFAULT_EXTRACTOR]
 		extractor_paths = glob.glob(
-			str(overlapper.PATH_EXTRACTORS / "*"))
+			str(extractor.PATH_EXTRACTORS / "*"))
 		self._extractor_paths = {
 			os.path.basename(f): f for f in extractor_paths}
 		extractorNames.extend(self._extractor_paths.keys())
@@ -274,7 +274,7 @@ class CiteOverlapGUI(HasTraits):
 		self._exportSep = self._exportSepNames.selections[0]
 
 		# extractor instance
-		self.dbExtractor = overlapper.DbExtractor()
+		self.dbExtractor = extractor.DbExtractor()
 		
 		# last opened directory
 		self._save_dir = None
@@ -345,7 +345,7 @@ class CiteOverlapGUI(HasTraits):
 				self._scopus = self._df_to_cols(df)
 			self.select_sheet_tab = SheetTabs.SCOPUS.value
 
-	def _importFile(self, path, extractor=None):
+	def _importFile(self, path, extract=None):
 		"""Import a database file.
 
 		Args:
@@ -370,8 +370,7 @@ class CiteOverlapGUI(HasTraits):
 			# auto-select extractor based on given database, not on path
 			if extractor:
 				# use given extractor
-				extractorPath = overlapper.PATH_EXTRACTORS / \
-				                extractor.value
+				extractorPath = overlapper.PATH_EXTRACTORS / extract.value
 			else:
 				# defer finding extractor to the extractor function
 				extractorPath = None
