@@ -12,3 +12,6 @@ APP_NAME = "Citation-Overlap"
 app_dir = pathlib.Path(__file__).resolve().parent.parent
 #: str: Accessor to application-related user directories.
 user_app_dirs = AppDirs(APP_NAME, False)
+#: list[:class:`pathlib.Path`]: List of extractor directories, defaulting
+# to the `extractors` folder in the app directory.
+extractor_dirs = [app_dir / 'extractors']

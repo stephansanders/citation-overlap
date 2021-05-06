@@ -7,6 +7,7 @@
 import argparse  # arguments parser
 from collections import OrderedDict
 from enum import Enum
+import pathlib
 import re  # regex
 import string  # string manipulation
 
@@ -14,9 +15,8 @@ import jellyfish # string comparison # pip3 install jellyfish
 #import hdbscan # pip3 install hdbscan
 import pandas as pd
 
-from citov import utils
-from citov.extractor import PATH_EXTRACTORS, ExtractKeys, JointKeyExtractor, \
-	DbExtractor
+from citov import config, utils
+from citov.extractor import ExtractKeys, JointKeyExtractor, DbExtractor
 
 
 # How to perform the search
@@ -1202,6 +1202,9 @@ def parseArgs():
 	parser.add_argument(
 		'-o', '--out', type=str, help='Name and location of the output file')
 	parser.add_argument(
+		'-x', '--extractors', nargs="*",
+		help='Folder path(s) of additional extractors')
+	parser.add_argument(
 		'-d', '--debug', action='store_true', help='Debugging function')
 	args = parser.parse_args()
 	
@@ -1221,6 +1224,8 @@ def parseArgs():
 	if args.scopus:
 		paths[DefaultExtractors.SCOPUS] = args.scopus
 		print(f'Set Scopus citation lists: {args.scopus}')
+	if args.extractors:
+		config.extractor_dirs.extend([pathlib.Path(p) for p in args.extractors])
 	
 	if args.out:
 		# parse output file path
@@ -1252,7 +1257,7 @@ def main(paths, outputFileName=None):
 		extractorPath = None  # auto-detect extractor
 		if extract in DefaultExtractors:
 			# use extractor specified by key
-			extractorPath = PATH_EXTRACTORS / extract.value
+			extractorPath = config.extractor_dirs[0] / extract.value
 		for path in paths:
 			try:
 				# extract citation list with the given extractor

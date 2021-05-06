@@ -16,7 +16,7 @@ from traitsui.api import Handler, View, Item, HGroup, VGroup, Tabbed, \
 	HSplit, TabularEditor, FileEditor, CheckListEditor
 from traitsui.tabular_adapter import TabularAdapter
 
-from citov import extractor, overlapper
+from citov import config, extractor, overlapper
 
 
 def main():
@@ -260,8 +260,10 @@ class CiteOverlapGUI(HasTraits):
 		# extractors, displaying only basename but keeping dict with full path
 		self._extractorNames = TraitsList()
 		extractorNames = [self._DEFAULT_EXTRACTOR]
-		extractor_paths = glob.glob(
-			str(extractor.PATH_EXTRACTORS / "*"))
+		extractor_paths = []
+		for extractor_dir in config.extractor_dirs:
+			extractor_paths.extend(glob.glob(
+				str(extractor_dir / "*")))
 		self._extractor_paths = {
 			os.path.basename(f): f for f in extractor_paths}
 		extractorNames.extend(self._extractor_paths.keys())
@@ -370,7 +372,7 @@ class CiteOverlapGUI(HasTraits):
 			# auto-select extractor based on given database, not on path
 			if extractor:
 				# use given extractor
-				extractorPath = overlapper.PATH_EXTRACTORS / extract.value
+				extractorPath = config.extractor_dirs[0] / extract.value
 			else:
 				# defer finding extractor to the extractor function
 				extractorPath = None

@@ -7,7 +7,7 @@ import pathlib
 from flask import Flask, request, jsonify
 import pandas as pd
 
-from citov import extractor
+from citov import config, extractor
 
 logging.basicConfig(filename='out.log', level=logging.INFO)
 app = Flask(__name__)
@@ -22,7 +22,7 @@ def findOverlaps(data):
 			io.StringIO(val), sep=',', index_col=False, dtype=str,
 			na_filter=False)
 		extractorPath = pathlib.Path(
-			'citation-overlap', extractor.PATH_EXTRACTORS,
+			'citation-overlap', config.extractor_dirs[0],
 			f'{key}.yml')
 		app.logger.info(path)
 		app.logger.info(extractorPath)

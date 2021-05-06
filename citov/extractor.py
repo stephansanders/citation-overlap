@@ -10,11 +10,7 @@ import pandas as pd
 from pandas.errors import ParserError
 
 from citov import config, overlapper, utils
-
-#: str: Path to extractor specification folder.
 from citov.utils import load_yaml
-
-PATH_EXTRACTORS = config.app_dir / 'extractors'
 
 #: :class:`logging.Logger`: Logger for this module.
 _logger = logging.getLogger().getChild(__name__)
@@ -178,13 +174,15 @@ class DbExtractor:
 			# identify a YAML extractor for the given database based on first
 			# part of the path filename
 			pathDbSplit = os.path.basename(os.path.splitext(path)[0]).split('_')
-			extractorPaths = glob.glob(
-				str(PATH_EXTRACTORS / f'{pathDbSplit[0].lower()}.*'))
-			for extrPath in extractorPaths:
-				if os.path.splitext(extrPath.lower())[1] in ('.yml', '.yaml'):
-					# case-insensitive match for YAML extension
-					extractorPath = extrPath
-					break
+			for extractor_dir in config.extractor_dirs:
+				extractorPaths = glob.glob(
+					str(extractor_dir / f'{pathDbSplit[0].lower()}.*'))
+				for extrPath in extractorPaths:
+					if os.path.splitext(extrPath.lower())[1] in (
+							'.yml', '.yaml'):
+						# case-insensitive match for YAML extension
+						extractorPath = extrPath
+						break
 
 		if extractorPath and os.path.exists(extractorPath):
 			# extract database file contents
