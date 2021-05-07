@@ -7,6 +7,7 @@
 import argparse  # arguments parser
 from collections import OrderedDict
 from enum import Enum
+import logging
 import pathlib
 import re  # regex
 import string  # string manipulation
@@ -16,9 +17,11 @@ import jellyfish # string comparison # pip3 install jellyfish
 #import hdbscan # pip3 install hdbscan
 import pandas as pd
 
-from citov import config, utils
+from citov import config, logs, utils
 from citov.extractor import ExtractKeys, JointKeyExtractor, DbExtractor
 
+#: :class:`logging.Logger`: Logger for this module.
+_logger = logging.getLogger().getChild(__name__)
 
 # How to perform the search
 
@@ -1216,8 +1219,13 @@ def parseArgs():
 		'-c', '--combine', nargs="*",
 		help='CSV/TSV file path(s) to combine')
 	parser.add_argument(
-		'-d', '--debug', action='store_true', help='Debugging function')
+		'-v', '--verbose', action='store_true', help='Verbose logging')
 	args = parser.parse_args()
+	
+	if args.verbose:
+		# turn on verbose mode
+		logs.update_log_level(logging.getLogger(), logging.DEBUG)
+		_logger.debug('Turned on verbose mode with debug logging')
 	
 	# parse input paths to the appropriate database extractor
 	paths = dict.fromkeys(DefaultExtractors, None)

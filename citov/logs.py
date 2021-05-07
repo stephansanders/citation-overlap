@@ -27,6 +27,33 @@ def setup_logger(level=logging.INFO):
 	return logger
 
 
+def update_log_level(logger, level):
+	"""Update the logging level.
+
+	Args:
+		logger (:class:`logging.Logger`): Logger to update.
+		level (Union[str, int]): Level given either as a string corresponding
+			to ``Logger`` levels, or their corresponding integers, ranging
+			from 0 (``NOTSET``) to 50 (``CRITICAL``).
+
+	Returns:
+		:class:`logging.Logger`: The logger for chained calls.
+
+	"""
+	try:
+		# set level for the logger and all its handlers
+		logger.setLevel(level)
+		for handler in logger.handlers:
+			handler.setLevel(level)
+		if level < logging.INFO:
+			# Pyface triggers an error in debug mode when Pygments is not
+			# installed
+			logging.getLogger('pyface').setLevel(logging.INFO)
+	except (TypeError, ValueError) as e:
+		logger.error(e, exc_info=True)
+	return logger
+
+
 def add_file_handler(logger, path, backups=5):
 	"""Add a rotating log file handler with a new log file.
 
