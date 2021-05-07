@@ -167,14 +167,13 @@ def _parseAuthorNames(row, key, year):
 	return authorNames, authorKey
 
 
-def _parseID(row, key, search=None, warn=True, default='NoPMID'):
+def _parseID(row, key, search=None, default='NoPMID'):
 	"""Get the ID.
 
 	Args:
-		row (dict[str, str]): Dictionary from a row.
-		key (str): Author names key in ``row``.
-		search (str): Regex search pattern; defaults to None.
-		warn (bool): True to warn if ID is not found; defaults to True.
+		row (dict[str, str]): A row as a dictionary.
+		key (str): Key in ``row`` for the ID.
+		search (str): Regex search pattern to extract the ID; defaults to None.
 		default (str): Default ID if ID is not found.
 
 	Returns:
@@ -190,8 +189,7 @@ def _parseID(row, key, search=None, warn=True, default='NoPMID'):
 				return pmidMatch.group(1)
 		else:
 			return pmidField
-	if warn:
-		print(f'ERR: No ID found: {pmidField}')
+	_logger.debug('No ID found: %s', pmidField)
 	return default
 
 

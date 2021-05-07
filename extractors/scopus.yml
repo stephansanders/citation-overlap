@@ -3,7 +3,7 @@
 ExtractKeys.YEAR:
   Year: '(19\d{2}|20\d{2})'
 ExtractKeys.AUTHOR_KEY: Authors
-ExtractKeys.PMID: [PubMed ID, '(\d+)', False]
+ExtractKeys.PMID: [PubMed ID, '(\d+)']
 ExtractKeys.TITLE: Title
 ExtractKeys.JOURNAL: Source title
 ExtractKeys.EXTRAS:
