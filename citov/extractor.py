@@ -38,8 +38,15 @@ class DbNames(Enum):
 
 
 class JointKeyExtractor:
+	"""Join metadata from different rows with custom separators.
+	
+	Allows specifying different keys and separators for each field. Can also
+	prioritize certain keys over others, extracting the first key that is
+	present.
+	
+	"""
 	def __init__(self, key, start='', end=''):
-		"""Extract values based on presence of keys or combinations of keys.
+		"""Initialize the extractor.
 
 		Args:
 			key (str, List[str]): Key or sequence of keys.
@@ -72,6 +79,7 @@ class JointKeyExtractor:
 		"""
 		mod = mods[0]
 		if utils.is_seq(mod):
+			# apply each modifier until successfully parsing
 			for mod_sub in mod:
 				parsed = JointKeyExtractor.parseMods(row, [mod_sub], [])
 				if parsed:
@@ -199,7 +207,11 @@ class DbExtractor:
 			headerMainId = 'Embase_ID' if dbEnum is DbNames.SCOPUS else None
 			if df is None:
 				try:
-					df = utils.read_csv(path)
+					if os.path.isdir(path):
+						paths = glob.glob(os.path.join(path, "*"))
+						df = utils.merge_csvs(paths)
+					else:
+						df = utils.read_csv(path)
 				except SyntaxError as e:
 					raise e
 			self.dbsParsed[dbName], df_out = overlapper.processDatabase(

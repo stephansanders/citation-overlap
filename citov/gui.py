@@ -216,13 +216,13 @@ class CiteOverlapGUI(HasTraits):
 			),
 			Item(
 				'_medlinePath', label='PubMed/MEDLINE file', style='simple',
-				editor=FileEditor(allow_dir=False)),
+				editor=FileEditor(allow_dir=True)),
 			Item(
 				'_embasePath', label='Embase file', style='simple',
-				editor=FileEditor(allow_dir=False)),
+				editor=FileEditor(allow_dir=True)),
 			Item(
 				'_scopusPath', label='Scopus file', style='simple',
-				editor=FileEditor(allow_dir=False)),
+				editor=FileEditor(allow_dir=True)),
 		),
 		HGroup(
 			Item('_overlapBtn', show_label=False, springy=True),
