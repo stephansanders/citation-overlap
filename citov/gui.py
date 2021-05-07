@@ -163,6 +163,7 @@ class CiteOverlapGUI(HasTraits):
 	# extractor drop-down
 	_extractor = Str
 	_extractorNames = Instance(TraitsList)
+	_extractorAddBtn = Button("Add")
 	_DEFAULT_EXTRACTOR = 'Auto'
 
 	# button to find overlaps
@@ -205,11 +206,14 @@ class CiteOverlapGUI(HasTraits):
 	# controls panel
 	_controlsPanel = VGroup(
 		VGroup(
-			Item(
-				"_extractor", label="Extractor",
-				editor=CheckListEditor(
-					name="object._extractorNames.selections",
-					format_func=lambda x: x)),
+			HGroup(
+				Item(
+					"_extractor", label="Extractor", springy=True,
+					editor=CheckListEditor(
+						name="object._extractorNames.selections",
+						format_func=lambda x: x)),
+				Item('_extractorAddBtn', show_label=False),
+			),
 			Item(
 				'_medlinePath', label='PubMed/MEDLINE file', style='simple',
 				editor=FileEditor(allow_dir=False)),
@@ -220,9 +224,11 @@ class CiteOverlapGUI(HasTraits):
 				'_scopusPath', label='Scopus file', style='simple',
 				editor=FileEditor(allow_dir=False)),
 		),
-		Item('_overlapBtn', show_label=False),
 		HGroup(
-			Item('_exportBtn', show_label=False),
+			Item('_overlapBtn', show_label=False, springy=True),
+		),
+		HGroup(
+			Item('_exportBtn', show_label=False, springy=True),
 			Item(
 				"_exportSep", label="Separator",
 				editor=CheckListEditor(
@@ -258,17 +264,13 @@ class CiteOverlapGUI(HasTraits):
 
 		# populate drop-down of available extractors from directory of
 		# extractors, displaying only basename but keeping dict with full path
-		self._extractorNames = TraitsList()
-		extractorNames = [self._DEFAULT_EXTRACTOR]
 		extractor_paths = []
 		for extractor_dir in config.extractor_dirs:
 			extractor_paths.extend(glob.glob(
 				str(extractor_dir / "*")))
 		self._extractor_paths = {
 			os.path.basename(f): f for f in extractor_paths}
-		extractorNames.extend(self._extractor_paths.keys())
-		self._extractorNames.selections = extractorNames
-		self._extractor = self._extractorNames.selections[0]
+		self._updateExtractorNames()
 
 		# populate drop-down of separators/delimiters
 		self._exportSepNames = TraitsList()
@@ -280,7 +282,28 @@ class CiteOverlapGUI(HasTraits):
 		
 		# last opened directory
 		self._save_dir = None
-
+	
+	def _updateExtractorNames(self, selected=None):
+		"""Update the list of extractor names shown in the combo box.
+		
+		Args:
+			selected (str): Select this item after updating names; defaults to
+				None. If none or not presenet in the names list, select the
+				first item.
+		
+		"""
+		# update combo box from extractor path keys
+		self._extractorNames = TraitsList()
+		extractorNames = [self._DEFAULT_EXTRACTOR]
+		extractorNames.extend(self._extractor_paths.keys())
+		self._extractorNames.selections = extractorNames
+		
+		# select item
+		if selected is None or selected not in extractorNames:
+			# default to first item if None or not present
+			selected = self._extractorNames.selections[0]
+		self._extractor = selected
+	
 	@staticmethod
 	def _df_to_cols(df):
 		"""Convert a data frame to table columns with widths adjusted to
@@ -317,6 +340,20 @@ class CiteOverlapGUI(HasTraits):
 		
 		return widths, colsIDs, df.to_numpy()
 
+	@on_trait_change('_extractorAddBtn')
+	def addExtractor(self):
+		"""Add an extractor to the combo box."""
+		try:
+			# get path to extractor from file dialog
+			path = self._getFileDialogPath()
+		except FileNotFoundError:
+			return
+		
+		# update combo box and select it
+		pathName = os.path.basename(path)
+		self._extractor_paths[pathName] = path
+		self._updateExtractorNames(pathName)
+		
 	@on_trait_change('_medlinePath')
 	def importMedline(self):
 		"""Import a Medline file and display in table."""
@@ -411,11 +448,15 @@ class CiteOverlapGUI(HasTraits):
 			print(msg)
 			print(e)
 
-	def _get_save_path(self, default_path):
-		"""Get a save path from the user through a file dialog.
+	def _getFileDialogPath(self, default_path='', mode='open'):
+		"""Get a path from the user through a file dialog.
 
 		Args:
-			default_path (str): Default path to display in the dialog.
+			default_path (str): Initial path to display in the dialog; defaults
+				to an emptry string. If :attr:`_save_dir` is set,
+				``default_path`` will be joined to the save directory.
+			mode (str): "open" for an open dialog, or "save as" for a save
+				dialog.
 
 		Returns:
 			str: Chosen path.
@@ -429,7 +470,7 @@ class CiteOverlapGUI(HasTraits):
 			default_path = os.path.join(self._save_dir, default_path)
 		
 		# open a PyFace file dialog in save mode
-		save_dialog = FileDialog(action="save as", default_path=default_path)
+		save_dialog = FileDialog(action=mode, default_path=default_path)
 		if save_dialog.open() == OK:
 			# get user selected path
 			return save_dialog.path
@@ -442,8 +483,8 @@ class CiteOverlapGUI(HasTraits):
 		"""Export tables to file."""
 		self.dbExtractor.saveSep = self._EXPORT_SEPS[self._exportSep]
 		try:
-			save_path = self._get_save_path(
-				self.dbExtractor.DEFAULT_OVERLAPS_PATH)
+			save_path = self._getFileDialogPath(
+				self.dbExtractor.DEFAULT_OVERLAPS_PATH, "save as")
 			self.dbExtractor.exportDataFrames(save_path)
 			self._statusBarMsg = (
 				f'Saved "{os.path.basename(save_path)}" and filtered tables to:'
