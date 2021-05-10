@@ -739,17 +739,23 @@ def subGroupV2(
 					aTwoYear = aTwoList.pop()
 
 					yearDist = 0
-					if aOneYear == aTwoYear:
-						yearDist = 20
-					elif aOneYear == 'NoYear' or aTwoYear == 'NoYear' \
-							or aOneYear == '.' or aTwoYear == '.':
-						yearDist = 0
-					elif int(aOneYear) - 1 == int(aTwoYear) or \
-							int(aOneYear) + 1 == int(aTwoYear):
-						yearDist = 16
-					elif int(aOneYear) - 2 == int(aTwoYear) or \
-							int(aOneYear) + 2 == int(aTwoYear):
-						yearDist = 12
+					try:
+						if aOneYear == aTwoYear:
+							yearDist = 20
+						elif aOneYear == 'NoYear' or aTwoYear == 'NoYear' \
+								or aOneYear == '.' or aTwoYear == '.':
+							yearDist = 0
+						elif int(aOneYear) - 1 == int(aTwoYear) or \
+								int(aOneYear) + 1 == int(aTwoYear):
+							yearDist = 16
+						elif int(aOneYear) - 2 == int(aTwoYear) or \
+								int(aOneYear) + 2 == int(aTwoYear):
+							yearDist = 12
+					except ValueError:
+						_logger.warning(
+							'Could not convert "%s" from %s or "%s" from %s '
+							'to an integer', aOneYear, idNameOne, aTwoYear,
+							idNameTwo)
 
 					# Find the author distance
 					authorDist = 0
