@@ -105,12 +105,13 @@ def _parseYear(row, key=None, search=None):
 		row (dict[str, str]): Dictionary from a row.
 		key (str): Column name; defaults to None. If given, ``search`` will
 			be ignored.
-		search (dict[str, Any]): Dictionary of ``row`` columns
-			to regex search patterns to extract the year. Each pattern may
-			be a sequence of patterns to try for the given column.
+		search (dict[str, Any]): Dictionary of ``row`` columns in which to
+			search with the given regex patterns to extract the year. Each
+			pattern may be a sequence of patterns to try for the given column.
+			The first match will be returned.
 
 	Returns:
-		str: Year.
+		str: Year, or "NoYear" if no year is found.
 
 	"""
 	if key:
