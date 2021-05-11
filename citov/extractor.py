@@ -158,48 +158,6 @@ class DbExtractor:
 		print(msg)
 		return msg, pathOut
 
-	def globalMatcher(self, idHere, pmid, authorKey, titleMin, journalKey):
-		"""Find matches across all input files.
-
-		Args:
-			idHere (str): ID.
-			pmid (str): PubMed ID.
-			authorKey (str): Author key.
-			titleMin (str): Title min.
-			journalKey (str): Journal key.
-
-		Returns:
-			``globalPmidDict``, ``globalauthorKeyDict``, ``globaltitleMinDict``,
-			and ``globalJournalKeyDict``.
-
-		"""
-		# Record pmid matches
-		if pmid in self.globalPmidDict:
-			self.globalPmidDict[pmid] = f'{self.globalPmidDict[pmid]};{idHere}'
-		else:
-			self.globalPmidDict[pmid] = idHere
-
-		# Record authorKey matches
-		if authorKey in self.globalAuthorKeyDict:
-			self.globalAuthorKeyDict[authorKey] = \
-				f'{self.globalAuthorKeyDict[authorKey]};{idHere}'
-		else:
-			self.globalAuthorKeyDict[authorKey] = idHere
-
-		# Record titleMin matches
-		if titleMin in self.globalTitleMinDict:
-			self.globalTitleMinDict[titleMin] = \
-				f'{self.globalTitleMinDict[titleMin]};{idHere}'
-		else:
-			self.globalTitleMinDict[titleMin] = idHere
-
-		# Record journalKey matches
-		if journalKey in self.globalJournalKeyDict:
-			self.globalJournalKeyDict[journalKey] = \
-				f'{self.globalJournalKeyDict[journalKey]};{idHere}'
-		else:
-			self.globalJournalKeyDict[journalKey] = idHere
-
 	def processDatabase(self, df, dbName, extractor, headerMainId=None):
 		"""Process a database records.
 
@@ -271,7 +229,14 @@ class DbExtractor:
 				journalKeyDict[journalKey] = dbId
 
 			# Record global matches
-			self.globalMatcher(dbId, pmid, authorKey, titleMin, journalKey)
+			dbDicts = {
+				pmid: self.globalPmidDict,
+				authorKey: self.globalAuthorKeyDict,
+				titleMin: self.globalTitleMinDict,
+				journalKey: self.globalJournalKeyDict
+			}
+			for key, dbDict in dbDicts.items():
+				dbDict[key] = f'{dbDict[key]};{dbId}' if key in dbDict else dbId
 
 		# Printout the file
 		keyList = procDict.keys()
