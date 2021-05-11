@@ -510,124 +510,6 @@ def matchFinder(
 	return match, basisOut, matchGroupOut, matchCountHere, matchGroup
 
 
-# Try to work out subgroups based on Lichenstein distance
-def subGroup(
-		thisId, idList, medlineDict, embaseDict, scopusDict, firstDict,
-		matchGroupOut, existingGroup, geneToSubgroup):
-	"""
-
-	Args:
-		thisId (str): ID.
-		idList (List[str]): List of IDs.
-		medlineDict (dict[str, dict[str, str]]): Medline dict.
-		embaseDict (dict[str, dict[str, str]]): Embase dict.
-		scopusDict (dict[str, dict[str, str]]): SCOPUS dict.
-		firstDict (dict[str, dict[str, str]]): First dict.
-		matchGroupOut (str): Match group for output.
-		existingGroup (List[str]): Existing groups.
-		geneToSubgroup:
-
-	Returns:
-		ID dict.
-
-	"""
-	# Get a unique groupId
-	groupNum = 1
-	nextGroup = f'{matchGroupOut}.{groupNum}'
-	while nextGroup in existingGroup:
-		groupNum += 1
-		nextGroup = f'{matchGroupOut}.{groupNum}'
-
-	# Get identifiers for Id of interest
-	pmidHere = authorKeyHere = titleMinHere = '.'
-	if thisId.startswith('MED'):
-		pmidHere = medlineDict[thisId]['pmid']
-		authorKeyHere = medlineDict[thisId]['authorKey']
-		titleMinHere = medlineDict[thisId]['titleMin']
-	elif thisId.startswith('EMB'):
-		pmidHere = embaseDict[thisId]['pmid']
-		authorKeyHere = embaseDict[thisId]['authorKey']
-		titleMinHere = embaseDict[thisId]['titleMin']
-	elif thisId.startswith('SCO'):
-		pmidHere = scopusDict[thisId]['pmid']
-		authorKeyHere = scopusDict[thisId]['authorKey']
-		titleMinHere = scopusDict[thisId]['titleMin']
-	elif thisId.startswith('ONE'):
-		pmidHere = firstDict[thisId]['pmid']
-		authorKeyHere = firstDict[thisId]['authorKey']
-		titleMinHere = firstDict[thisId]['titleMin']
-
-	# Get identifiers for each matching Id
-	idDist = '.'
-	goodMatch = []
-	badMatch = []
-	for thatId in idList:
-		if thatId != thisId:
-
-			pmidMatch = authorKeyMatch = titleMinMatch = '.'
-			if thatId.startswith('MED'):
-				pmidMatch = medlineDict[thatId]['pmid']
-				authorKeyMatch = medlineDict[thatId]['authorKey']
-				titleMinMatch = medlineDict[thatId]['titleMin']
-			elif thatId.startswith('EMB'):
-				pmidMatch = embaseDict[thatId]['pmid']
-				authorKeyMatch = embaseDict[thatId]['authorKey']
-				titleMinMatch = embaseDict[thatId]['titleMin']
-			elif thatId.startswith('SCO'):
-				pmidMatch = scopusDict[thatId]['pmid']
-				authorKeyMatch = scopusDict[thatId]['authorKey']
-				titleMinMatch = scopusDict[thatId]['titleMin']
-			elif thatId.startswith('ONE'):
-				pmidMatch = firstDict[thatId]['pmid']
-				authorKeyMatch = firstDict[thatId]['authorKey']
-				titleMinMatch = firstDict[thatId]['titleMin']
-
-			# Get the PMID distance, 0 to 100, with 0 the worst and 100 the
-			# best; 9999 is unknown
-			distanceOut = 9999
-			if pmidHere == pmidMatch and pmidHere != 'NoPMID':
-				distanceOut = 100
-			elif pmidHere == 'NoPMID' or pmidMatch == 'NoPMID' :
-				distanceOut = 9999
-			else:
-				distanceOut = 0
-
-			# If no useful PMID matching
-			if distanceOut == 9999:
-				
-				# 0 to 100, with 0 the worst and 100 the best
-				authorKeyActualDiff = jellyfish.damerau_levenshtein_distance(
-					authorKeyHere, authorKeyMatch)
-				titleMinActualDiff = jellyfish.damerau_levenshtein_distance(
-					titleMinHere, titleMinMatch)
-
-				authorKeyDiff = 100 - min(authorKeyActualDiff, 100)
-				titleMinDiff = 100 - min(titleMinActualDiff, 100)
-
-				authorKeyDiffWeight = 100 - int(authorKeyActualDiff / (
-						len(authorKeyHere) + len(authorKeyMatch)) * 100)
-				titleMinDiffWeight = 100 - int(titleMinActualDiff / (
-						len(titleMinHere) + len(titleMinMatch)) * 100)
-
-				distance = min(authorKeyDiff, titleMinDiff)
-				distanceWeight = min(authorKeyDiffWeight, titleMinDiffWeight)
-				distanceOut = f'{distance}/{distanceWeight}'
-
-			if idDist == '.':
-				idDist = f'{thatId}({distanceOut})'
-			else:
-				idDist = f'{idDist};{thatId}({distanceOut})'
-
-			# Find subgroups
-			if distanceOut >= 100:
-				# Same subgroup
-				goodMatch.append(thatId) 
-			if distanceOut <= 10:
-				badMatch.append(thatId) 
-
-	return idDist
-
-
 def getSubgroupNum(matchGroupOut, groupNum):
 	"""Get subgroup number
 
@@ -645,10 +527,13 @@ def getSubgroupNum(matchGroupOut, groupNum):
 	return nextGroup, groupNum
 
 
-def subGroupV2(
+def subGroup(
 		idList, dbDicts, matchGroupOut,
 		idToGroup, idToSubgroup, subgroupToId, idToDistance):
-	"""Try to work out subgroups based on Lichenstein distance.
+	"""Identify subgroups based on sequence distances.
+	
+	Applies the Damerau–Levenshtein distance to measure differences between
+	sequences.
 
 	Args:
 		idList (List[str]): List of IDs.
@@ -1117,7 +1002,7 @@ def findOverlaps(
 			# Work out subgroups
 			if match != '.':
 				idToGroup, idToSubgroup, subgroupToId, idToDistance = \
-					subGroupV2(
+					subGroup(
 						matchKeyDict, dbDicts.values(),
 						matchGroupOut, idToGroup,
 						idToSubgroup, subgroupToId, idToDistance)
