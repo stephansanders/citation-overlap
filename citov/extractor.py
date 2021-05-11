@@ -215,7 +215,7 @@ class DbExtractor:
 				except SyntaxError as e:
 					raise e
 			self.dbsParsed[dbName], df_out = overlapper.processDatabase(
-				path, df, dbName, extractor, self.globalPmidDict,
+				df, dbName, extractor, self.globalPmidDict,
 				self.globalAuthorKeyDict, self.globalTitleMinDict,
 				self.globalJournalKeyDict, headerMainId)
 			self.dfsParsed[dbName] = df_out

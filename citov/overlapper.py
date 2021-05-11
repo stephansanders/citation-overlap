@@ -786,12 +786,11 @@ def globalMatcher(
 
 
 def processDatabase(
-		path, df, dbName, extractor, globalPmidDict, globalAuthorKeyDict,
+		df, dbName, extractor, globalPmidDict, globalAuthorKeyDict,
 		globalTitleMinDict, globalJournalKeyDict, headerMainId=None):
 	"""Process a database records.
 
 	Args:
-		path (str): Path from which to construct the output path.
 		df (:obj:`pd.DataFrame`): Data frame to process.
 		dbName (str): Database name.
 		extractor (func): Extractor specification dict.
