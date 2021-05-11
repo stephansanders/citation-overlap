@@ -158,6 +158,174 @@ class DbExtractor:
 		print(msg)
 		return msg, pathOut
 
+	def globalMatcher(self, idHere, pmid, authorKey, titleMin, journalKey):
+		"""Find matches across all input files.
+
+		Args:
+			idHere (str): ID.
+			pmid (str): PubMed ID.
+			authorKey (str): Author key.
+			titleMin (str): Title min.
+			journalKey (str): Journal key.
+
+		Returns:
+			``globalPmidDict``, ``globalauthorKeyDict``, ``globaltitleMinDict``,
+			and ``globalJournalKeyDict``.
+
+		"""
+		# Record pmid matches
+		if pmid in self.globalPmidDict:
+			self.globalPmidDict[pmid] = f'{self.globalPmidDict[pmid]};{idHere}'
+		else:
+			self.globalPmidDict[pmid] = idHere
+
+		# Record authorKey matches
+		if authorKey in self.globalAuthorKeyDict:
+			self.globalAuthorKeyDict[authorKey] = \
+				f'{self.globalAuthorKeyDict[authorKey]};{idHere}'
+		else:
+			self.globalAuthorKeyDict[authorKey] = idHere
+
+		# Record titleMin matches
+		if titleMin in self.globalTitleMinDict:
+			self.globalTitleMinDict[titleMin] = \
+				f'{self.globalTitleMinDict[titleMin]};{idHere}'
+		else:
+			self.globalTitleMinDict[titleMin] = idHere
+
+		# Record journalKey matches
+		if journalKey in self.globalJournalKeyDict:
+			self.globalJournalKeyDict[journalKey] = \
+				f'{self.globalJournalKeyDict[journalKey]};{idHere}'
+		else:
+			self.globalJournalKeyDict[journalKey] = idHere
+
+	def processDatabase(self, df, dbName, extractor, headerMainId=None):
+		"""Process a database records.
+
+		Args:
+			df (:obj:`pd.DataFrame`): Data frame to process.
+			dbName (str): Database name.
+			extractor (func): Extractor specification dict.
+			headerMainId (str): String for the main ID in the header; defaults
+				to None, in which case the header will be constructed from
+				``dbName``.
+
+		Returns:
+			dict[str, dict[:obj:`ExtractKeys`, str]], :obj:`pd.DataFrame`:
+			Dictionary of processed database entries, where keys are database
+			IDs, and values are dictionarys of extraction keys to processed
+			strings. Data Frame of the processed file.
+
+		"""
+		print('\n#############################################################')
+		print(f' Processing a {dbName} file')
+		print('#############################################################\n')
+
+		if not headerMainId:
+			headerMainId = f'{dbName}_ID'
+
+		procDict = {}
+
+		# Process the file
+		pmidDict = {}
+		authorKeyDict = {}
+		titleMinDict = {}
+		journalKeyDict = {}
+		for lineCount, row in enumerate(df.to_dict(orient="records")):
+			# shift line count by 1 for 1-based indexing
+			dbId = f'{dbName[:3].upper()}_{lineCount + 1:05d}'
+			extraction = extractEntry(row, extractor)
+
+			# Store the info
+			procDict[dbId] = extraction
+			pmid = extraction[ExtractKeys.PMID]
+			authorKey = extraction[ExtractKeys.AUTHOR_KEY]
+			titleMin = extraction[ExtractKeys.TITLE_MIN]
+			journalKey = extraction[ExtractKeys.JOURNAL_KEY]
+
+			# Record pmid matches
+			if pmid in pmidDict:
+				pmidDict[pmid] = f'{pmidDict[pmid]};{dbId}'
+			else:
+				pmidDict[pmid] = dbId
+
+			# Record authorKey matches
+			if authorKey in authorKeyDict:
+				authorKeyDict[authorKey] = \
+					f'{authorKeyDict[authorKey]};{dbId}'
+			else:
+				authorKeyDict[authorKey] = dbId
+
+			# Record titleMin matches
+			if titleMin in titleMinDict:
+				titleMinDict[titleMin] = f'{titleMinDict[titleMin]};{dbId}'
+			else:
+				titleMinDict[titleMin] = dbId
+
+			# Record journalKey matches
+			if journalKey in journalKeyDict:
+				journalKeyDict[journalKey] = \
+					f'{journalKeyDict[journalKey]};{dbId}'
+			else:
+				journalKeyDict[journalKey] = dbId
+
+			# Record global matches
+			self.globalMatcher(dbId, pmid, authorKey, titleMin, journalKey)
+
+		# Printout the file
+		keyList = procDict.keys()
+		matchCount = 0
+		matchGroup = {}
+		headerIds = None
+		pubmedHeaders = None
+		records = []
+		for dbId in sorted(keyList):
+
+			pmidHere = procDict[dbId][ExtractKeys.PMID]
+			authorKeyHere = procDict[dbId][ExtractKeys.AUTHOR_KEY]
+			titleMinHere = procDict[dbId][ExtractKeys.TITLE_MIN]
+			match, basisOut, matchGroupOut, matchCount, matchGroup = \
+				matchFinder(
+					pmidHere, authorKeyHere, titleMinHere, pmidDict,
+					authorKeyDict, titleMinDict, matchCount, dbId, matchGroup)
+
+			# concatenate available IDs
+			ids = (dbId, pmidHere, procDict[dbId][ExtractKeys.EMID])
+			idsStr = [i for i in ids if i is not None]
+			if headerIds is None:
+				# construct headers based on available IDs
+				pubmedHeaders = list(df.columns.values)
+				headerIdKeys = [
+					f'{headerMainId}', ExtractKeys.PMID.value.upper(),
+					ExtractKeys.EMID.value.upper()]
+				headerIds = [h for h, i in zip(headerIdKeys, ids) if i is not None]
+
+			# add clean record
+			record = OrderedDict()
+			for header, idStr in zip(headerIds, idsStr):
+				record[header] = idStr
+			record['Author_Names'] = procDict[dbId][ExtractKeys.AUTHOR_NAMES]
+			record['Year'] = procDict[dbId][ExtractKeys.YEAR]
+			record['Author_Year_Key'] = authorKeyHere
+			record['Title'] = procDict[dbId][ExtractKeys.TITLE]
+			record['Title_Key'] = titleMinHere
+			record['Journal_Details'] = procDict[dbId][ExtractKeys.JOURNAL]
+			record['Journal_Key'] = procDict[dbId][ExtractKeys.JOURNAL_KEY]
+			record['Similar_Records'] = match
+			record['Similarity'] = basisOut
+			record['Similar_group'] = matchGroupOut
+			if pubmedHeaders:
+				for header, val in zip(
+						pubmedHeaders, procDict[dbId][ExtractKeys.ROW]):
+					if header in record:
+						header = f'{header}_orig'
+					record[header] = val
+			records.append(record)
+
+		df_out = pd.DataFrame.from_records(records)
+		return procDict, df_out
+
 	def extractDb(self, path, extractorPath=None, df=None):
 		"""Extract a database file into a parsed format.
 
@@ -216,10 +384,8 @@ class DbExtractor:
 						df = utils.read_csv(path)
 				except SyntaxError as e:
 					raise e
-			self.dbsParsed[dbName], df_out = processDatabase(
-				df, dbName, extractor, self.globalPmidDict,
-				self.globalAuthorKeyDict, self.globalTitleMinDict,
-				self.globalJournalKeyDict, headerMainId)
+			self.dbsParsed[dbName], df_out = self.processDatabase(
+				df, dbName, extractor, headerMainId)
 			self.dfsParsed[dbName] = df_out
 		else:
 			raise FileNotFoundError(f'Could not find extrator for "{path}"')
@@ -472,8 +638,8 @@ def _rowToList(row):
 	return rowOut
 
 
-def dbExtract(row, extractor):
-	"""Extract key info from a database row.
+def extractEntry(row, extractor):
+	"""Extract salient metadata from a database entry.
 
 	The ``extractor`` specifies the arguments to the corresponding parsers
 	for the given key. The :obj:`ExtractKeys.EXTRAS` key specifies a
@@ -612,190 +778,3 @@ def matchFinder(
 	return match, basisOut, matchGroupOut, matchCountHere, matchGroup
 
 
-def globalMatcher(
-		idHere, pmid, authorKey, titleMin, globalPmidDict, globalauthorKeyDict,
-		globaltitleMinDict, globalJournalKeyDict, journalKey):
-	"""Find matches across all input files.
-
-	Args:
-		idHere (str): ID.
-		pmid (str): PubMed ID.
-		authorKey (str): Author key.
-		titleMin (str): Title min.
-		globalPmidDict (dict[str, str]): Pubmed ID dict.
-		globalauthorKeyDict (dict[str, str]): Author key dict.
-		globaltitleMinDict (dict[str, str]): Title min dict.
-		globalJournalKeyDict (dict[str, str]): Journal key dict.
-		journalKey (str): Journal key.
-
-	Returns:
-		``globalPmidDict``, ``globalauthorKeyDict``, ``globaltitleMinDict``,
-		and ``globalJournalKeyDict``.
-
-	"""
-	# Record pmid matches
-	if pmid in globalPmidDict:
-		globalPmidDict[pmid] = f'{globalPmidDict[pmid]};{idHere}'
-	else:
-		globalPmidDict[pmid] = idHere
-
-	# Record authorKey matches
-	if authorKey in globalauthorKeyDict:
-		globalauthorKeyDict[authorKey] = \
-			f'{globalauthorKeyDict[authorKey]};{idHere}'
-	else:
-		globalauthorKeyDict[authorKey] = idHere
-
-	# Record titleMin matches
-	if titleMin in globaltitleMinDict:
-		globaltitleMinDict[titleMin] = \
-			f'{globaltitleMinDict[titleMin]};{idHere}'
-	else:
-		globaltitleMinDict[titleMin] = idHere
-
-	# Record journalKey matches
-	if journalKey in globalJournalKeyDict:
-		globalJournalKeyDict[journalKey] = \
-			f'{globalJournalKeyDict[journalKey]};{idHere}'
-	else:
-		globalJournalKeyDict[journalKey] = idHere
-
-	return globalPmidDict, globalauthorKeyDict, globaltitleMinDict,\
-		globalJournalKeyDict
-
-
-def processDatabase(
-		df, dbName, extractor, globalPmidDict, globalAuthorKeyDict,
-		globalTitleMinDict, globalJournalKeyDict, headerMainId=None):
-	"""Process a database records.
-
-	Args:
-		df (:obj:`pd.DataFrame`): Data frame to process.
-		dbName (str): Database name.
-		extractor (func): Extractor specification dict.
-		globalPmidDict (dict): Global dictionary of PubMed IDs.
-		globalAuthorKeyDict (dict): Global dictionary of author keys.
-		globalTitleMinDict (dict): Global dictionary of short titles.
-		globalJournalKeyDict (dict): Global dictionary of journal keys.
-		headerMainId (str): String for the main ID in the header; defaults
-			to None, in which case the header will be constructed from
-			``dbName``.
-
-	Returns:
-		dict[str, dict[:obj:`ExtractKeys`, str]], :obj:`pd.DataFrame`:
-		Dictionary of processed database entries, where keys are database
-		IDs, and values are dictionarys of extraction keys to processed
-		strings. Data Frame of the processed file.
-
-	"""
-	print('\n#############################################################')
-	print(f' Processing a {dbName} file')
-	print('#############################################################\n')
-
-	if not headerMainId:
-		headerMainId = f'{dbName}_ID'
-
-	procDict = {}
-
-	# Process the file
-	pmidDict = {}
-	authorKeyDict = {}
-	titleMinDict = {}
-	journalKeyDict = {}
-	for lineCount, row in enumerate(df.to_dict(orient="records")):
-		# shift line count by 1 for 1-based indexing
-		dbId = f'{dbName[:3].upper()}_{lineCount+1:05d}'
-		extraction = dbExtract(row, extractor)
-
-		# Store the info
-		procDict[dbId] = extraction
-		pmid = extraction[ExtractKeys.PMID]
-		authorKey = extraction[ExtractKeys.AUTHOR_KEY]
-		titleMin = extraction[ExtractKeys.TITLE_MIN]
-		journalKey = extraction[ExtractKeys.JOURNAL_KEY]
-
-		# Record pmid matches
-		if pmid in pmidDict:
-			pmidDict[pmid] = f'{pmidDict[pmid]};{dbId}'
-		else:
-			pmidDict[pmid] = dbId
-
-		# Record authorKey matches
-		if authorKey in authorKeyDict:
-			authorKeyDict[authorKey] = \
-				f'{authorKeyDict[authorKey]};{dbId}'
-		else:
-			authorKeyDict[authorKey] = dbId
-
-		# Record titleMin matches
-		if titleMin in titleMinDict:
-			titleMinDict[titleMin] = f'{titleMinDict[titleMin]};{dbId}'
-		else:
-			titleMinDict[titleMin] = dbId
-
-		# Record journalKey matches
-		if journalKey in journalKeyDict:
-			journalKeyDict[journalKey] = \
-				f'{journalKeyDict[journalKey]};{dbId}'
-		else:
-			journalKeyDict[journalKey] = dbId
-
-		# Record global matches
-		globalPmidDict, globalAuthorKeyDict, globalTitleMinDict, \
-			globalJournalKeyDict = globalMatcher(
-				dbId, pmid, authorKey, titleMin, globalPmidDict,
-				globalAuthorKeyDict, globalTitleMinDict,
-				globalJournalKeyDict, journalKey)
-
-	# Printout the file
-	keyList = procDict.keys()
-	matchCount = 0
-	matchGroup = {}
-	headerIds = None
-	pubmedHeaders = None
-	records = []
-	for dbId in sorted(keyList):
-
-		pmidHere = procDict[dbId][ExtractKeys.PMID]
-		authorKeyHere = procDict[dbId][ExtractKeys.AUTHOR_KEY]
-		titleMinHere = procDict[dbId][ExtractKeys.TITLE_MIN]
-		match, basisOut, matchGroupOut, matchCount, matchGroup = \
-			matchFinder(
-				pmidHere, authorKeyHere, titleMinHere, pmidDict,
-				authorKeyDict, titleMinDict, matchCount, dbId, matchGroup)
-
-		# concatenate available IDs
-		ids = (dbId, pmidHere, procDict[dbId][ExtractKeys.EMID])
-		idsStr = [i for i in ids if i is not None]
-		if headerIds is None:
-			# construct headers based on available IDs
-			pubmedHeaders = list(df.columns.values)
-			headerIdKeys = [
-				f'{headerMainId}', ExtractKeys.PMID.value.upper(),
-				ExtractKeys.EMID.value.upper()]
-			headerIds = [h for h, i in zip(headerIdKeys, ids) if i is not None]
-
-		# add clean record
-		record = OrderedDict()
-		for header, idStr in zip(headerIds, idsStr):
-			record[header] = idStr
-		record['Author_Names'] = procDict[dbId][ExtractKeys.AUTHOR_NAMES]
-		record['Year'] = procDict[dbId][ExtractKeys.YEAR]
-		record['Author_Year_Key'] = authorKeyHere
-		record['Title'] = procDict[dbId][ExtractKeys.TITLE]
-		record['Title_Key'] = titleMinHere
-		record['Journal_Details'] = procDict[dbId][ExtractKeys.JOURNAL]
-		record['Journal_Key'] = procDict[dbId][ExtractKeys.JOURNAL_KEY]
-		record['Similar_Records'] = match
-		record['Similarity'] = basisOut
-		record['Similar_group'] = matchGroupOut
-		if pubmedHeaders:
-			for header, val in zip(
-					pubmedHeaders, procDict[dbId][ExtractKeys.ROW]):
-				if header in record:
-					header = f'{header}_orig'
-				record[header] = val
-		records.append(record)
-
-	df_out = pd.DataFrame.from_records(records)
-	return procDict, df_out
