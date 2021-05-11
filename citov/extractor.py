@@ -157,6 +157,67 @@ class DbExtractor:
 		msg = f'Saved output file to: {pathOut}'
 		print(msg)
 		return msg, pathOut
+	
+	@staticmethod
+	def _matchFinder(
+			pmidHere, authorKeyHere, titleMinHere, pmidDict, authorKeyDict,
+			titleMinDict, matchCountHere, theId, matchGroup):
+		"""Find matches within a single source.
+
+		Args:
+			pmidHere (str): PubMed ID.
+			authorKeyHere (str): Author key.
+			titleMinHere (str): Title min.
+			pmidDict (dict[str, str]): PubMed dictionary.
+			authorKeyDict (dict[str, str]): Author dictionary.
+			titleMinDict (dict[str, str]): Title min dictionary.
+			matchCountHere (int): Match count.
+			theId: ID.
+			matchGroup (dict[str, int]): Match group dict.
+
+		Returns:
+			match, basis out, match group out, and match count.
+
+		"""
+		possibleMatch = {}
+		basis = {}
+		matchKey = {}
+
+		dbDicts = {
+			pmidHere: (pmidDict, 'NoPMID', ExtractKeys.PMID),
+			authorKeyHere: (authorKeyDict, '.', ExtractKeys.AUTHOR_KEY),
+			titleMinHere: (titleMinDict, '.', ExtractKeys.TITLE_MIN),
+		}
+
+		for key, val in dbDicts.items():
+			# identify matches for the given metadata
+			if key != val[1]:
+				dbDict = val[0]
+				if ';' in dbDict[key]:
+					for theIdMatch in dbDict[key].split(';'):
+						matchKey[theIdMatch] = 5
+						if theId != theIdMatch:
+							possibleMatch[theIdMatch] = 5
+							basis[val[2]] = 5
+
+		# Join matches
+		match = basisOut = matchGroupOut = '.'
+		if possibleMatch:
+
+			match = ';'.join(possibleMatch.keys())
+			basisOut = ';'.join([k.value for k in basis.keys()])
+
+			matchKey[theId] = 5
+			matchKeysAll = sorted(matchKey.keys())
+			matchKeyJoinAll = ';'.join(matchKeysAll)
+			if matchKeyJoinAll in matchGroup:
+				matchGroupOut = matchGroup[matchKeyJoinAll]
+			else:
+				matchCountHere += 1
+				matchGroup[matchKeyJoinAll] = matchCountHere
+				matchGroupOut = matchGroup[matchKeyJoinAll]
+
+		return match, basisOut, matchGroupOut, matchCountHere
 
 	def processDatabase(self, df, dbName, extractor, headerMainId=None):
 		"""Process a database records.
@@ -250,7 +311,7 @@ class DbExtractor:
 			pmidHere = procDict[dbId][ExtractKeys.PMID]
 			authorKeyHere = procDict[dbId][ExtractKeys.AUTHOR_KEY]
 			titleMinHere = procDict[dbId][ExtractKeys.TITLE_MIN]
-			match, basisOut, matchGroupOut, matchCount = matchFinder(
+			match, basisOut, matchGroupOut, matchCount = self._matchFinder(
 				pmidHere, authorKeyHere, titleMinHere, pmidDict, authorKeyDict,
 				titleMinDict, matchCount, dbId, matchGroup)
 
@@ -670,65 +731,5 @@ def extractEntry(row, extractor):
 
 	return extraction
 
-
-def matchFinder(
-		pmidHere, authorKeyHere, titleMinHere, pmidDict, authorKeyDict,
-		titleMinDict, matchCountHere, theId, matchGroup):
-	"""Find matches within a single source.
-
-	Args:
-		pmidHere (str): PubMed ID.
-		authorKeyHere (str): Author key.
-		titleMinHere (str): Title min.
-		pmidDict (dict[str, str]): PubMed dictionary.
-		authorKeyDict (dict[str, str]): Author dictionary.
-		titleMinDict (dict[str, str]): Title min dictionary.
-		matchCountHere (int): Match count.
-		theId: ID.
-		matchGroup (dict[str, int]): Match group dict.
-
-	Returns:
-		match, basis out, match group out, and match count.
-
-	"""
-	possibleMatch = {}
-	basis = {}
-	matchKey = {}
-	
-	dbDicts = {
-		pmidHere: (pmidDict, 'NoPMID', ExtractKeys.PMID),
-		authorKeyHere: (authorKeyDict, '.', ExtractKeys.AUTHOR_KEY),
-		titleMinHere: (titleMinDict, '.', ExtractKeys.TITLE_MIN),
-	}
-	
-	for key, val in dbDicts.items():
-		# identify matches for the given metadata
-		if key != val[1]:
-			dbDict = val[0]
-			if ';' in dbDict[key]:
-				for theIdMatch in dbDict[key].split(';'):
-					matchKey[theIdMatch] = 5
-					if theId != theIdMatch:
-						possibleMatch[theIdMatch] = 5
-						basis[val[2]] = 5
-
-	# Join matches
-	match = basisOut = matchGroupOut = '.'
-	if possibleMatch:
-		
-		match = ';'.join(possibleMatch.keys())
-		basisOut = ';'.join([k.value for k in basis.keys()])
-
-		matchKey[theId] = 5
-		matchKeysAll = sorted(matchKey.keys())
-		matchKeyJoinAll = ';'.join(matchKeysAll)
-		if matchKeyJoinAll in matchGroup:
-			matchGroupOut = matchGroup[matchKeyJoinAll]
-		else:
-			matchCountHere += 1
-			matchGroup[matchKeyJoinAll] = matchCountHere
-			matchGroupOut = matchGroup[matchKeyJoinAll]
-
-	return match, basisOut, matchGroupOut, matchCountHere
 
 
