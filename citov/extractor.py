@@ -238,7 +238,7 @@ class DbExtractor:
 			for key, dbDict in dbDicts.items():
 				dbDict[key] = f'{dbDict[key]};{dbId}' if key in dbDict else dbId
 
-		# Printout the file
+		# Print out the file
 		keyList = procDict.keys()
 		matchCount = 0
 		matchGroup = {}
@@ -250,10 +250,9 @@ class DbExtractor:
 			pmidHere = procDict[dbId][ExtractKeys.PMID]
 			authorKeyHere = procDict[dbId][ExtractKeys.AUTHOR_KEY]
 			titleMinHere = procDict[dbId][ExtractKeys.TITLE_MIN]
-			match, basisOut, matchGroupOut, matchCount, matchGroup = \
-				matchFinder(
-					pmidHere, authorKeyHere, titleMinHere, pmidDict,
-					authorKeyDict, titleMinDict, matchCount, dbId, matchGroup)
+			match, basisOut, matchGroupOut, matchCount = matchFinder(
+				pmidHere, authorKeyHere, titleMinHere, pmidDict, authorKeyDict,
+				titleMinDict, matchCount, dbId, matchGroup)
 
 			# concatenate available IDs
 			ids = (dbId, pmidHere, procDict[dbId][ExtractKeys.EMID])
@@ -689,39 +688,29 @@ def matchFinder(
 		matchGroup (dict[str, int]): Match group dict.
 
 	Returns:
-		match, basis out, match group out, match count, and match group.
+		match, basis out, match group out, and match count.
 
 	"""
 	possibleMatch = {}
 	basis = {}
 	matchKey = {}
 	
-	# Look for PMID matches
-	if pmidHere != 'NoPMID':
-		if ';' in pmidDict[pmidHere]:
-			for theIdMatch in pmidDict[pmidHere].split(';'):
-				matchKey[theIdMatch] = 5
-				if theId != theIdMatch:
-					possibleMatch[theIdMatch] = 5
-					basis[ExtractKeys.PMID] = 5
-
-	# Look for authorKey matches
-	if authorKeyHere != '.':
-		if ';' in authorKeyDict[authorKeyHere]:
-			for theIdMatch in authorKeyDict[authorKeyHere].split(';'):
-				matchKey[theIdMatch] = 5
-				if theId != theIdMatch:
-					possibleMatch[theIdMatch] = 5
-					basis[ExtractKeys.AUTHOR_KEY] = 5
-
-	# Look for titleMin matches
-	if titleMinHere != '.':
-		if ';' in titleMinDict[titleMinHere]:
-			for theIdMatch in titleMinDict[titleMinHere].split(';'):
-				matchKey[theIdMatch] = 5
-				if theId != theIdMatch:
-					possibleMatch[theIdMatch] = 5
-					basis[ExtractKeys.TITLE_MIN] = 5
+	dbDicts = {
+		pmidHere: (pmidDict, 'NoPMID', ExtractKeys.PMID),
+		authorKeyHere: (authorKeyDict, '.', ExtractKeys.AUTHOR_KEY),
+		titleMinHere: (titleMinDict, '.', ExtractKeys.TITLE_MIN),
+	}
+	
+	for key, val in dbDicts.items():
+		# identify matches for the given metadata
+		if key != val[1]:
+			dbDict = val[0]
+			if ';' in dbDict[key]:
+				for theIdMatch in dbDict[key].split(';'):
+					matchKey[theIdMatch] = 5
+					if theId != theIdMatch:
+						possibleMatch[theIdMatch] = 5
+						basis[val[2]] = 5
 
 	# Join matches
 	match = basisOut = matchGroupOut = '.'
@@ -740,6 +729,6 @@ def matchFinder(
 			matchGroup[matchKeyJoinAll] = matchCountHere
 			matchGroupOut = matchGroup[matchKeyJoinAll]
 
-	return match, basisOut, matchGroupOut, matchCountHere, matchGroup
+	return match, basisOut, matchGroupOut, matchCountHere
 
 
