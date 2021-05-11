@@ -2,6 +2,7 @@
 
 import logging
 import pathlib
+import string
 
 import pandas as pd
 from pandas.errors import ParserError
@@ -146,3 +147,18 @@ def merge_csvs(in_paths, out_path=None):
 		_logger.info(f'Saving merged CSV/TSVs to "{out_path}"')
 		df.to_csv(out_path, sep=get_file_sep(out_path))
 	return df
+
+
+def removePunctuation(val):
+	"""Remove periods and replace spaces with underscores in strings.
+
+	Args:
+		val (str): String.
+
+	Returns:
+		str: ``val`` with punctuation removed.
+
+	"""
+	newName = val.translate(str.maketrans('', '', string.punctuation))
+	newName = newName.replace(' ', '_')
+	return newName

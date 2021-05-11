@@ -16,7 +16,8 @@ import jellyfish # string comparison # pip3 install jellyfish
 #import hdbscan # pip3 install hdbscan
 
 from citov import config, logs, utils
-from citov.extractor import ExtractKeys, DbExtractor
+from citov.extractor import DbExtractor
+from citov.parser import ExtractKeys
 
 #: :class:`logging.Logger`: Logger for this module.
 _logger = logging.getLogger().getChild(__name__)
