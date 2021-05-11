@@ -1225,7 +1225,7 @@ def parseArgs():
 		help='CSV/TSV file path(s) to combine')
 	parser.add_argument(
 		'-v', '--verbose', action='store_true', help='Verbose logging')
-	args = parser.parse_args()
+	args, args_unknown = parser.parse_known_args()
 	
 	if args.verbose:
 		# turn on verbose mode
@@ -1265,6 +1265,13 @@ def parseArgs():
 	if args.out:
 		# parse output file path
 		outputFileName = args.out
+	
+	# notify user of full args list, including unrecognized args
+	_logger.debug(f"All command-line arguments: {sys.argv}")
+	if args_unknown:
+		_logger.info(
+			f"The following command-line arguments were unrecognized and "
+			f"ignored: {args_unknown}")
 	
 	return paths, outputFileName
 
