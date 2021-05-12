@@ -160,11 +160,12 @@ class CiteOverlapGUI(HasTraits):
 	_embasePath = File()
 	_scopusPath = File()
 
-	# extractor drop-down
-	_extractor = Str
+	# extractor drop-downs
+	_extractorMedline = Str
+	_extractorEmbase = Str
+	_extractorScopus = Str
 	_extractorNames = Instance(TraitsList)
-	_extractorAddBtn = Button("Add")
-	_DEFAULT_EXTRACTOR = 'Auto'
+	_extractorAddBtn = Button('Add Extractor')
 
 	# button to find overlaps
 	_overlapBtn = Button('Find Overlaps')
@@ -208,21 +209,35 @@ class CiteOverlapGUI(HasTraits):
 		VGroup(
 			HGroup(
 				Item(
-					"_extractor", label="Extractor", springy=True,
+					"_extractorMedline", label='File 1 source', springy=True,
 					editor=CheckListEditor(
 						name="object._extractorNames.selections",
-						format_func=lambda x: x)),
-				Item('_extractorAddBtn', show_label=False),
+						format_func=lambda x: os.path.splitext(x)[0])),
 			),
 			Item(
-				'_medlinePath', label='PubMed/MEDLINE file', style='simple',
+				'_medlinePath', show_label=False, style='simple',
 				editor=FileEditor(allow_dir=True)),
+			HGroup(
+				Item(
+					"_extractorEmbase", label='File 2 source', springy=True,
+					editor=CheckListEditor(
+						name="object._extractorNames.selections",
+						format_func=lambda x: os.path.splitext(x)[0])),
+			),
 			Item(
-				'_embasePath', label='Embase file', style='simple',
+				'_embasePath', show_label=False, style='simple',
 				editor=FileEditor(allow_dir=True)),
+			HGroup(
+				Item(
+					"_extractorScopus", label='File 3 source', springy=True,
+					editor=CheckListEditor(
+						name="object._extractorNames.selections",
+						format_func=lambda x: os.path.splitext(x)[0])),
+			),
 			Item(
-				'_scopusPath', label='Scopus file', style='simple',
+				'_scopusPath', show_label=False, style='simple',
 				editor=FileEditor(allow_dir=True)),
+			Item('_extractorAddBtn', show_label=False),
 		),
 		HGroup(
 			Item('_overlapBtn', show_label=False, springy=True),
@@ -270,7 +285,7 @@ class CiteOverlapGUI(HasTraits):
 				str(extractor_dir / "*")))
 		self._extractor_paths = {
 			os.path.basename(f): f for f in extractor_paths}
-		self._updateExtractorNames()
+		self._updateExtractorNames(True)
 
 		# populate drop-down of separators/delimiters
 		self._exportSepNames = TraitsList()
@@ -283,26 +298,32 @@ class CiteOverlapGUI(HasTraits):
 		# last opened directory
 		self._save_dir = None
 	
-	def _updateExtractorNames(self, selected=None):
-		"""Update the list of extractor names shown in the combo box.
+	def _updateExtractorNames(self, reset=False):
+		"""Update the list of extractor names shown in the combo boxes.
 		
 		Args:
-			selected (str): Select this item after updating names; defaults to
-				None. If none or not presenet in the names list, select the
-				first item.
+			reset (bool): True to reset to default selections; defaults to
+				False.
 		
 		"""
+		if reset:
+			# pick default selections for each extractor
+			selections = [e.value for e in extractor.DefaultExtractors]
+		else:
+			# keep current selections
+			selections = (
+				self._extractorMedline,
+				self._extractorEmbase,
+				self._extractorScopus,
+			)
 		# update combo box from extractor path keys
 		self._extractorNames = TraitsList()
-		extractorNames = [self._DEFAULT_EXTRACTOR]
-		extractorNames.extend(self._extractor_paths.keys())
+		extractorNames = list(self._extractor_paths.keys())
 		self._extractorNames.selections = extractorNames
 		
-		# select item
-		if selected is None or selected not in extractorNames:
-			# default to first item if None or not present
-			selected = self._extractorNames.selections[0]
-		self._extractor = selected
+		# assign default extractor selections
+		self._extractorMedline, self._extractorEmbase, self._extractorScopus = \
+			selections
 	
 	@staticmethod
 	def _df_to_cols(df):
@@ -349,16 +370,16 @@ class CiteOverlapGUI(HasTraits):
 		except FileNotFoundError:
 			return
 		
-		# update combo box and select it
+		# update combo box
 		pathName = os.path.basename(path)
 		self._extractor_paths[pathName] = path
-		self._updateExtractorNames(pathName)
+		self._updateExtractorNames()
 		
 	@on_trait_change('_medlinePath')
 	def importMedline(self):
 		"""Import a Medline file and display in table."""
 		df = self._importFile(
-			self._medlinePath, extractor.DefaultExtractors.MEDLINE)
+			self._medlinePath, self._extractor_paths[self._extractorMedline])
 		if df is not None:
 			self._medlineAdapter._widths, self._medlineAdapter.columns, \
 				self._medline = self._df_to_cols(df)
@@ -368,7 +389,7 @@ class CiteOverlapGUI(HasTraits):
 	def importEmbase(self):
 		"""Import an Embase file and display in table."""
 		df = self._importFile(
-			self._embasePath, extractor.DefaultExtractors.EMBASE)
+			self._embasePath, self._extractor_paths[self._extractorEmbase])
 		if df is not None:
 			self._embaseAdapter._widths, self._embaseAdapter.columns, \
 				self._embase = self._df_to_cols(df)
@@ -378,21 +399,18 @@ class CiteOverlapGUI(HasTraits):
 	def importScopus(self):
 		"""Import a SCOPUS file and display in table."""
 		df = self._importFile(
-			self._scopusPath, extractor.DefaultExtractors.SCOPUS)
+			self._scopusPath, self._extractor_paths[self._extractorScopus])
 		if df is not None:
 			self._scopusAdapter._widths, self._scopusAdapter.columns, \
 				self._scopus = self._df_to_cols(df)
 			self.select_sheet_tab = SheetTabs.SCOPUS.value
 
-	def _importFile(self, path, extract=None):
+	def _importFile(self, path, extractorPath=None):
 		"""Import a database file.
 
 		Args:
 			path (str): Path to database file to import.
-			extract (:obj:`overlapper.DefaultExtractors`):
-				Enum of default extractor for the given database. Ignored
-				if :attr:`_extractor` is :const:`_DEFAULT_EXTRACTOR`.
-				Defaults to None to determine by :meth:`dbExtractor.extractDb`.
+			extractorPath (str): Path to extractor file.
 
 		Returns:
 			:obj:`pd.DataFrame`: Data frame of extracted file.
@@ -404,26 +422,10 @@ class CiteOverlapGUI(HasTraits):
 			return None
 		self._save_dir = os.path.dirname(path)
 
-		extractorPath = self._extractor
-		if extractorPath is self._DEFAULT_EXTRACTOR:
-			# auto-select extractor based on given database, not on path
-			if extractor:
-				# use given extractor
-				extractorPath = config.extractor_dirs[0] / extract.value
-			else:
-				# defer finding extractor to the extractor function
-				extractorPath = None
-		else:
-			# get full path for selected extractor
-			extractorPath = self._extractor_paths[extractorPath]
-
 		try:
 			# extract file
 			df, dbName = self.dbExtractor.extractDb(path, extractorPath)
 			self._statusBarMsg = f'Imported file from {path}'
-			
-			# reset extractor to auto
-			self._extractor = self._DEFAULT_EXTRACTOR
 			return df
 		except (FileNotFoundError, SyntaxError) as e:
 			self._statusBarMsg = str(e)
