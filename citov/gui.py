@@ -238,16 +238,20 @@ class CiteOverlapGUI(HasTraits):
 				'_scopusPath', show_label=False, style='simple',
 				editor=FileEditor(allow_dir=True)),
 			Item('_extractorAddBtn', show_label=False),
+			label='Load Citation Files',
 		),
-		HGroup(
-			Item('_overlapBtn', show_label=False, springy=True),
-		),
-		HGroup(
-			Item('_exportBtn', show_label=False, springy=True),
-			Item(
-				"_exportSep", label="Separator",
-				editor=CheckListEditor(
-					name="object._exportSepNames.selections")),
+		VGroup(
+			HGroup(
+				Item('_overlapBtn', show_label=False, springy=True),
+			),
+			HGroup(
+				Item('_exportBtn', show_label=False, springy=True),
+				Item(
+					"_exportSep", label="Separator",
+					editor=CheckListEditor(
+						name="object._exportSepNames.selections")),
+			),
+			label='Detect Overlapping Citations',
 		),
 	)
 
