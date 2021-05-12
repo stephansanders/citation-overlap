@@ -4,7 +4,7 @@
 import pathlib
 import sys
 
-from citov import config, logs, overlapper
+from citov import config, extractor, logs
 
 
 def main():
@@ -16,10 +16,10 @@ def main():
 	sys.excepthook = logs.log_uncaught_exception
 	
 	# parse command-line args
-	paths, outputFileName = overlapper.parseArgs()
+	paths, outputFileName = extractor.parseArgs()
 	if any(paths.values()):
 		# run CLI if any database args given
-		overlapper.main(paths, outputFileName)
+		extractor.main(paths, outputFileName)
 	else:
 		# launch graphical interface
 		from citov import gui

@@ -16,7 +16,7 @@ from traitsui.api import Handler, View, Item, HGroup, VGroup, Tabbed, \
 	HSplit, TabularEditor, FileEditor, CheckListEditor
 from traitsui.tabular_adapter import TabularAdapter
 
-from citov import config, extractor, overlapper
+from citov import config, extractor
 
 
 def main():
@@ -358,7 +358,7 @@ class CiteOverlapGUI(HasTraits):
 	def importMedline(self):
 		"""Import a Medline file and display in table."""
 		df = self._importFile(
-			self._medlinePath, overlapper.DefaultExtractors.MEDLINE)
+			self._medlinePath, extractor.DefaultExtractors.MEDLINE)
 		if df is not None:
 			self._medlineAdapter._widths, self._medlineAdapter.columns, \
 				self._medline = self._df_to_cols(df)
@@ -368,7 +368,7 @@ class CiteOverlapGUI(HasTraits):
 	def importEmbase(self):
 		"""Import an Embase file and display in table."""
 		df = self._importFile(
-			self._embasePath, overlapper.DefaultExtractors.EMBASE)
+			self._embasePath, extractor.DefaultExtractors.EMBASE)
 		if df is not None:
 			self._embaseAdapter._widths, self._embaseAdapter.columns, \
 				self._embase = self._df_to_cols(df)
@@ -378,7 +378,7 @@ class CiteOverlapGUI(HasTraits):
 	def importScopus(self):
 		"""Import a SCOPUS file and display in table."""
 		df = self._importFile(
-			self._scopusPath, overlapper.DefaultExtractors.SCOPUS)
+			self._scopusPath, extractor.DefaultExtractors.SCOPUS)
 		if df is not None:
 			self._scopusAdapter._widths, self._scopusAdapter.columns, \
 				self._scopus = self._df_to_cols(df)

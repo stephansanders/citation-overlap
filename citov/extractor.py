@@ -1,14 +1,17 @@
 """Citation list extractor for the Citation-Overlap tool."""
 
+import argparse
 from collections import OrderedDict
 from enum import Enum
 import glob
 import logging
 import os
+import pathlib
+import sys
 
 import pandas as pd
 
-from citov import config, overlapper, utils
+from citov import config, logs, overlapper, utils
 from citov.parser import ExtractKeys, JointKeyExtractor, parseEntry
 
 #: :class:`logging.Logger`: Logger for this module.
@@ -22,18 +25,20 @@ class DbNames(Enum):
 	SCOPUS = 'Scopus'
 
 
-class DbExtractor:
+class DefaultExtractors(Enum):
+	"""Default extractor filenames Enumeration."""
+	MEDLINE = 'medline.yml'
+	EMBASE = 'embase.yml'
+	SCOPUS = 'scopus.yml'
+
+
+class DbExtractor(overlapper.DbMatcher):
 	"""Perform database extractions and store results for overlap detection.
 
 	Attributes:
 		saveSep (str): Separator/delimiter to use when exporting data frames;
 			defaults to None to not export.
-		globalPmidDict (dict): PubMed ID dict.
-		globalAuthorKeyDict (dict): Author keys dict.
-		globalTitleMinDict (dict): Short title dict.
 		globalJournalKeyDict (dict): Journal key dict.
-		dbsParsed (OrderedDict[str, dict]): Dictionary of database names to
-			parsed database dictionaries; defaults to an empty dictionary.
 		dfsParsed (OrderedDict): Dictionary of database names to
 			parsed database data frames; defaults to an empty dictionary.
 		dfOverlaps (:obj:`pd.DataFrame`): Data frame of databases processed
@@ -49,13 +54,10 @@ class DbExtractor:
 	}
 
 	def __init__(self, saveSep=None):
+		super().__init__()
 		self.saveSep = saveSep
 
-		self.globalPmidDict = {}
-		self.globalAuthorKeyDict = {}
-		self.globalTitleMinDict = {}
 		self.globalJournalKeyDict = {}
-		self.dbsParsed = OrderedDict()
 		self.dfsParsed = OrderedDict()
 		self.dfOverlaps = None
 
@@ -106,21 +108,12 @@ class DbExtractor:
 		matchKey = {}
 
 		dbDicts = {
-			pmidHere: (pmidDict, 'NoPMID', ExtractKeys.PMID),
-			authorKeyHere: (authorKeyDict, '.', ExtractKeys.AUTHOR_KEY),
-			titleMinHere: (titleMinDict, '.', ExtractKeys.TITLE_MIN),
+			pmidHere: (pmidDict, ('NoPMID',), ExtractKeys.PMID),
+			authorKeyHere: (authorKeyDict, ('.',), ExtractKeys.AUTHOR_KEY),
+			titleMinHere: (titleMinDict, ('.',), ExtractKeys.TITLE_MIN),
 		}
 
-		for key, val in dbDicts.items():
-			# identify matches for the given metadata
-			if key != val[1]:
-				dbDict = val[0]
-				if ';' in dbDict[key]:
-					for theIdMatch in dbDict[key].split(';'):
-						matchKey[theIdMatch] = 5
-						if theId != theIdMatch:
-							possibleMatch[theIdMatch] = 5
-							basis[val[2]] = 5
+		DbExtractor.makeMatches(dbDicts, theId, matchKey, basis, possibleMatch)
 
 		# Join matches
 		match = basisOut = matchGroupOut = '.'
@@ -362,12 +355,13 @@ class DbExtractor:
 		idToDistance = {}
 		globalmatchCount = 0
 
+		dbOverlapper = overlapper.DbOverlapper(
+			self.dbsParsed, self.globalPmidDict, self.globalAuthorKeyDict,
+			self.globalTitleMinDict)
 		for dbName, dbDict in self.dbsParsed.items():
 			# find overlaps among parsed dicts
-			globalmatchCount = overlapper.findOverlaps(
-				records, dbDict, self.dbsParsed, self.globalPmidDict,
-				self.globalAuthorKeyDict, self.globalTitleMinDict,
-				dbName[:3].upper(), matchGroupNew, idToGroup,
+			globalmatchCount = dbOverlapper.findOverlaps(
+				records, dbDict, dbName[:3].upper(), matchGroupNew, idToGroup,
 				idToSubgroup, subgroupToId, idToDistance, globalmatchCount)
 
 		# import records to data frame and sort with ungrouped rows at end,
@@ -399,3 +393,121 @@ class DbExtractor:
 			msgs.append(self._saveDataFrame(
 				self.dfOverlaps, overlapsOutPath)[0])
 		return msgs
+
+
+def parseArgs():
+	"""Parse arguments."""
+	parser = argparse.ArgumentParser(
+		description=
+		'Find overlaps between articles downloaded from Medline, Embase, '
+		'and Scopus')
+	parser.add_argument(
+		'cit_lists', nargs="*", help='Citation lists auto-detected by filename')
+	parser.add_argument(
+		'-m', '--medline', nargs="*", type=str, help='Medline CSV/TSV file')
+	parser.add_argument(
+		'-e', '--embase', nargs="*", type=str, help='Embase CSV/TSV file')
+	parser.add_argument(
+		'-s', '--scopus', nargs="*", type=str, help='Scopus CSV/TSV file')
+	parser.add_argument(
+		'-o', '--out', type=str, help='Name and location of the output file')
+	parser.add_argument(
+		'-x', '--extractors', nargs="*",
+		help='Folder path(s) of additional extractors')
+	parser.add_argument(
+		'-c', '--combine', nargs="*",
+		help='CSV/TSV file path(s) to combine')
+	parser.add_argument(
+		'-v', '--verbose', action='store_true', help='Verbose logging')
+	args, args_unknown = parser.parse_known_args()
+	
+	if args.verbose:
+		# turn on verbose mode
+		logs.update_log_level(logging.getLogger(), logging.DEBUG)
+		_logger.debug('Turned on verbose mode with debug logging')
+	
+	# parse input paths to the appropriate database extractor
+	paths = dict.fromkeys(DefaultExtractors, None)
+	outputFileName = None
+	if args.cit_lists:
+		# paths given without a parameter are auto-detected
+		paths['auto'] = args.cit_lists
+		print(
+			f'Set citation lists for auto-detection by filename: '
+			f'{args.cit_lists}')
+	if args.medline:
+		paths[DefaultExtractors.MEDLINE] = args.medline
+		print(f'Set Medline citation lists: {args.medline}')
+	if args.embase:
+		paths[DefaultExtractors.EMBASE] = args.embase
+		print(f'Set Embase citation lists: {args.embase}')
+	if args.scopus:
+		paths[DefaultExtractors.SCOPUS] = args.scopus
+		print(f'Set Scopus citation lists: {args.scopus}')
+
+	if args.extractors:
+		# add additional extractor directories
+		config.extractor_dirs.extend([pathlib.Path(p) for p in args.extractors])
+
+	if args.combine:
+		# combine files along rows
+		print(f'Combining citation lists and exiting: {args.combine}')
+		out_path = pathlib.Path(args.combine[0])
+		utils.merge_csvs(
+			args.combine,
+			out_path.parent / f'{out_path.stem}_combined{out_path.suffix}')
+		sys.exit()
+	
+	if args.out:
+		# parse output file path
+		outputFileName = args.out
+	
+	# notify user of full args list, including unrecognized args
+	_logger.debug(f"All command-line arguments: {sys.argv}")
+	if args_unknown:
+		_logger.info(
+			f"The following command-line arguments were unrecognized and "
+			f"ignored: {args_unknown}")
+	
+	return paths, outputFileName
+
+
+def main(paths, outputFileName=None):
+	"""Extract database TSV files into dicts and find citation overlaps.
+
+	Args:
+		paths (dict[Any, str]): Dictionary of extractor Enums from
+			:class:`DefaultExtractors` to input file paths. Any key not
+			in this Enum class is treated as paths for auto-detection.
+		outputFileName (str): Name of output file; defaults to None to use
+			a default name.
+
+	Returns:
+		:class:`pandas.DataFrame`: Combined citations with overlaps as a data
+		frame.
+
+	"""
+	# assume that paths are ordered by arg parser
+	dbExtractor = DbExtractor('\t')
+	for extract, paths in paths.items():
+		if paths is None:
+			continue
+		extractorPath = None  # auto-detect extractor
+		if extract in DefaultExtractors:
+			# use extractor specified by key
+			extractorPath = config.extractor_dirs[0] / extract.value
+		for path in paths:
+			try:
+				# extract citation list with the given extractor
+				dbExtractor.extractDb(path, extractorPath)
+			except (FileNotFoundError, SyntaxError) as e:
+				print(e)
+	
+	# find overlaps and export merged and filtered tables
+	dbExtractor.combineOverlaps()
+	dbExtractor.exportDataFrames(
+		outputFileName if outputFileName else dbExtractor.DEFAULT_OVERLAPS_PATH)
+
+
+if __name__ == "__main__":
+	main(*parseArgs())
