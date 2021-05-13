@@ -137,6 +137,20 @@ class CiteOverlapHandler(Handler):
 		# index (1-based)
 		tab_widgets = info.ui.control.findChildren(QtWidgets.QTabWidget)
 		tab_widgets[0].setCurrentIndex(info.object.select_sheet_tab - 1)
+	
+	def object_renameSheetName_changed(self, info):
+		"""Handler to rename sheets.
+		
+		Args:
+			info (UIInfo): TraitsUI UI info.
+
+		Returns:
+
+		"""
+		# find the tab widget QTabWidget and rename based on name trait
+		tab_widgets = info.ui.control.findChildren(QtWidgets.QTabWidget)
+		tab_widgets[0].setTabText(
+			info.object.renameSheetTab, info.object.renameSheetName)
 
 
 class CiteOverlapGUI(HasTraits):
@@ -152,6 +166,8 @@ class CiteOverlapGUI(HasTraits):
 
 	# select the given tag based on SheetTabs enum value
 	select_sheet_tab = Int(-1)
+	renameSheetTab = Int(-1)  # tab index to rename
+	renameSheetName = Str  # new tab name
 
 	# Control panel controls
 
@@ -328,6 +344,29 @@ class CiteOverlapGUI(HasTraits):
 		# assign default extractor selections
 		self._extractorMedline, self._extractorEmbase, self._extractorScopus = \
 			selections
+	
+	@on_trait_change('_extractorMedline')
+	def _renameMedlineTab(self):
+		self.renameTab(SheetTabs.MEDLINE, self._extractorMedline)
+
+	@on_trait_change('_extractorEmbase')
+	def _renameEmbaseTab(self):
+		self.renameTab(SheetTabs.EMBASE, self._extractorEmbase)
+
+	@on_trait_change('_extractorScopus')
+	def _renameScopusTab(self):
+		self.renameTab(SheetTabs.SCOPUS, self._extractorScopus)
+
+	def renameTab(self, tab, name):
+		"""Rename spreadsheet tab.
+		
+		Args:
+			tab (Enum): Tab enum.
+			name (str): New name of tab.
+
+		"""
+		self.renameSheetTab = tab.value - 1
+		self.renameSheetName = os.path.splitext(name)[0]
 	
 	@staticmethod
 	def _df_to_cols(df):
