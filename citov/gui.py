@@ -11,7 +11,8 @@ from PyQt5 import QtWidgets, QtCore
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 from pyface.api import FileDialog, OK
 from traits.api import HasTraits, on_trait_change, Int, Str, Button, \
-	Array, push_exception_handler, File, List, Instance, Property
+	Array, push_exception_handler, Enum as TraitEnum, File, List, Instance, \
+	Property
 from traitsui.api import Handler, View, Item, HGroup, VGroup, Tabbed, \
 	HSplit, TabularEditor, FileEditor, CheckListEditor
 from traitsui.tabular_adapter import TabularAdapter
@@ -153,6 +154,35 @@ class CiteOverlapHandler(Handler):
 			info.object.renameSheetTab, info.object.renameSheetName)
 
 
+class CiteImport(HasTraits):
+	"""Citation list file importer.
+	
+	Provides a view to select the extractor definition file and citation
+	file to import.
+	
+	"""
+	extractor = Str()  # extractor filename in extractorNames
+	extractorNames = Instance(TraitsList)  # list of extractor filenames
+	path = File()  # citation list path
+	tab = TraitEnum(SheetTabs)  # associated tab in sheets widget
+	
+	# TraitsUI default view
+	traits_view = View(
+		VGroup(
+			HGroup(
+				Item(
+					"extractor", label='File source', springy=True,
+					editor=CheckListEditor(
+						name="object.extractorNames.selections",
+						format_func=lambda x: os.path.splitext(x)[0])),
+			),
+			Item(
+				'path', show_label=False, style='simple',
+				editor=FileEditor(allow_dir=True)),
+		),
+	)
+
+
 class CiteOverlapGUI(HasTraits):
 	"""GUI for Citation Overlap."""
 	#: OrderedDict[str, str]: Dictionary of separator descriptions to
@@ -171,15 +201,12 @@ class CiteOverlapGUI(HasTraits):
 
 	# Control panel controls
 
-	# input paths
-	_medlinePath = File()
-	_embasePath = File()
-	_scopusPath = File()
+	# citation list import views
+	importMedline = Instance(CiteImport)
+	importEmbase = Instance(CiteImport)
+	importScopus = Instance(CiteImport)
 
 	# extractor drop-downs
-	_extractorMedline = Str
-	_extractorEmbase = Str
-	_extractorScopus = Str
 	_extractorNames = Instance(TraitsList)
 	_extractorAddBtn = Button('Add Extractor')
 
@@ -223,36 +250,9 @@ class CiteOverlapGUI(HasTraits):
 	# controls panel
 	_controlsPanel = VGroup(
 		VGroup(
-			HGroup(
-				Item(
-					"_extractorMedline", label='File 1 source', springy=True,
-					editor=CheckListEditor(
-						name="object._extractorNames.selections",
-						format_func=lambda x: os.path.splitext(x)[0])),
-			),
-			Item(
-				'_medlinePath', show_label=False, style='simple',
-				editor=FileEditor(allow_dir=True)),
-			HGroup(
-				Item(
-					"_extractorEmbase", label='File 2 source', springy=True,
-					editor=CheckListEditor(
-						name="object._extractorNames.selections",
-						format_func=lambda x: os.path.splitext(x)[0])),
-			),
-			Item(
-				'_embasePath', show_label=False, style='simple',
-				editor=FileEditor(allow_dir=True)),
-			HGroup(
-				Item(
-					"_extractorScopus", label='File 3 source', springy=True,
-					editor=CheckListEditor(
-						name="object._extractorNames.selections",
-						format_func=lambda x: os.path.splitext(x)[0])),
-			),
-			Item(
-				'_scopusPath', show_label=False, style='simple',
-				editor=FileEditor(allow_dir=True)),
+			Item('importMedline', show_label=False, style='custom'),
+			Item('importEmbase', show_label=False, style='custom'),
+			Item('importScopus', show_label=False, style='custom'),
 			Item('_extractorAddBtn', show_label=False),
 			label='Load Citation Files',
 		),
@@ -296,16 +296,28 @@ class CiteOverlapGUI(HasTraits):
 	def __init__(self):
 		"""Initialize the GUI."""
 		super().__init__()
+		
+		# set up import views
+		self.importMedline = CiteImport(tab=SheetTabs.MEDLINE)
+		self.importEmbase = CiteImport(tab=SheetTabs.EMBASE)
+		self.importScopus = CiteImport(tab=SheetTabs.SCOPUS)
+		self.importViews = (
+			self.importMedline,
+			self.importEmbase,
+			self.importScopus
+		)
 
 		# populate drop-down of available extractors from directory of
 		# extractors, displaying only basename but keeping dict with full path
 		extractor_paths = []
 		for extractor_dir in config.extractor_dirs:
-			extractor_paths.extend(glob.glob(
-				str(extractor_dir / "*")))
+			extractor_paths.extend(glob.glob(str(extractor_dir / "*")))
 		self._extractor_paths = {
 			os.path.basename(f): f for f in extractor_paths}
 		self._updateExtractorNames(True)
+		for importer in self.importViews:
+			importer.observe(self.renameTab, "extractor")
+			importer.observe(self.importFile, "path")
 
 		# populate drop-down of separators/delimiters
 		self._exportSepNames = TraitsList()
@@ -331,42 +343,26 @@ class CiteOverlapGUI(HasTraits):
 			selections = [e.value for e in extractor.DefaultExtractors]
 		else:
 			# keep current selections
-			selections = (
-				self._extractorMedline,
-				self._extractorEmbase,
-				self._extractorScopus,
-			)
+			selections = [v.extractor for v in self.importViews]
 		# update combo box from extractor path keys
 		self._extractorNames = TraitsList()
 		extractorNames = list(self._extractor_paths.keys())
 		self._extractorNames.selections = extractorNames
 		
 		# assign default extractor selections
-		self._extractorMedline, self._extractorEmbase, self._extractorScopus = \
-			selections
+		for view, selection in zip(self.importViews, selections):
+			view.extractorNames = self._extractorNames
+			view.extractor = selection
 	
-	@on_trait_change('_extractorMedline')
-	def _renameMedlineTab(self):
-		self.renameTab(SheetTabs.MEDLINE, self._extractorMedline)
-
-	@on_trait_change('_extractorEmbase')
-	def _renameEmbaseTab(self):
-		self.renameTab(SheetTabs.EMBASE, self._extractorEmbase)
-
-	@on_trait_change('_extractorScopus')
-	def _renameScopusTab(self):
-		self.renameTab(SheetTabs.SCOPUS, self._extractorScopus)
-
-	def renameTab(self, tab, name):
+	def renameTab(self, event):
 		"""Rename spreadsheet tab.
 		
 		Args:
-			tab (Enum): Tab enum.
-			name (str): New name of tab.
+			event (:class:`traits.observation.events.TraitChangeEvent`): Event.
 
 		"""
-		self.renameSheetTab = tab.value - 1
-		self.renameSheetName = os.path.splitext(name)[0]
+		self.renameSheetTab = event.object.tab.value - 1
+		self.renameSheetName = os.path.splitext(event.object.extractor)[0]
 	
 	@staticmethod
 	def _df_to_cols(df):
@@ -417,48 +413,18 @@ class CiteOverlapGUI(HasTraits):
 		pathName = os.path.basename(path)
 		self._extractor_paths[pathName] = path
 		self._updateExtractorNames()
-		
-	@on_trait_change('_medlinePath')
-	def importMedline(self):
-		"""Import a Medline file and display in table."""
-		df = self._importFile(
-			self._medlinePath, self._extractor_paths[self._extractorMedline])
-		if df is not None:
-			self._medlineAdapter._widths, self._medlineAdapter.columns, \
-				self._medline = self._df_to_cols(df)
-			self.selectSheetTab = SheetTabs.MEDLINE.value - 1
-
-	@on_trait_change('_embasePath')
-	def importEmbase(self):
-		"""Import an Embase file and display in table."""
-		df = self._importFile(
-			self._embasePath, self._extractor_paths[self._extractorEmbase])
-		if df is not None:
-			self._embaseAdapter._widths, self._embaseAdapter.columns, \
-				self._embase = self._df_to_cols(df)
-			self.selectSheetTab = SheetTabs.EMBASE.value - 1
-
-	@on_trait_change('_scopusPath')
-	def importScopus(self):
-		"""Import a SCOPUS file and display in table."""
-		df = self._importFile(
-			self._scopusPath, self._extractor_paths[self._extractorScopus])
-		if df is not None:
-			self._scopusAdapter._widths, self._scopusAdapter.columns, \
-				self._scopus = self._df_to_cols(df)
-			self.selectSheetTab = SheetTabs.SCOPUS.value - 1
-
-	def _importFile(self, path, extractorPath=None):
+	
+	def importFile(self, event):
 		"""Import a database file.
 
 		Args:
-			path (str): Path to database file to import.
-			extractorPath (str): Path to extractor file.
+			event (:class:`traits.observation.events.TraitChangeEvent`): Event.
 
 		Returns:
 			:obj:`pd.DataFrame`: Data frame of extracted file.
 
 		"""
+		path = event.object.path
 		if not os.path.exists(path):
 			# file inaccessible, or manually edited, non-accessible path
 			self._statusBarMsg = f'{path} could not be found, skipping'
@@ -467,8 +433,22 @@ class CiteOverlapGUI(HasTraits):
 
 		try:
 			# extract file
+			extractorPath = self._extractor_paths[event.object.extractor]
 			df, dbName = self.dbExtractor.extractDb(path, extractorPath)
 			self._statusBarMsg = f'Imported file from {path}'
+			if df is not None:
+				# output data frame to associated table
+				dfColOut = self._df_to_cols(df)
+				if event.object.tab is SheetTabs.MEDLINE:
+					self._medlineAdapter._widths, self._medlineAdapter.columns, \
+						self._medline = dfColOut
+				elif event.object.tab is SheetTabs.EMBASE:
+					self._embaseAdapter._widths, self._embaseAdapter.columns, \
+						self._embase = dfColOut
+				elif event.object.tab is SheetTabs.SCOPUS:
+					self._scopusAdapter._widths, self._scopusAdapter.columns, \
+						self._scopus = dfColOut
+				self.selectSheetTab = event.object.tab.value - 1
 			return df
 		except (FileNotFoundError, SyntaxError) as e:
 			self._statusBarMsg = str(e)
