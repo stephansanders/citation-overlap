@@ -99,6 +99,7 @@ class TableArrayAdapter(TabularAdapter):
 		# dict of col_id to width; cannot access public attributes for some
 		# reason so set widths as private attribute
 		return self._widths[column]
+	
 	def _get_group_text(self):
 		"""Get Group column value."""
 		return self.item[self._get_col('Group')]
@@ -125,18 +126,17 @@ class CiteOverlapHandler(Handler):
 		for table in table_widgets:
 			table.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignLeft)
 
-	def object_select_sheet_tab_changed(self, info):
+	def object_selectSheetTab_changed(self, info):
 		"""Select the given tab specified by
-		:attr:`CiteOverlapGUI.select_controls_tab`.
+		:attr:`CiteOverlapGUI.selectSheetTab`.
 
 		Args:
 			info (UIInfo): TraitsUI UI info.
 
 		"""
-		# find the tab widget QTabWidget and subtract one from Enum-based
-		# index (1-based)
+		# find the tab widget QTabWidget and select the given tab
 		tab_widgets = info.ui.control.findChildren(QtWidgets.QTabWidget)
-		tab_widgets[0].setCurrentIndex(info.object.select_sheet_tab - 1)
+		tab_widgets[0].setCurrentIndex(info.object.selectSheetTab)
 	
 	def object_renameSheetName_changed(self, info):
 		"""Handler to rename sheets.
@@ -164,8 +164,8 @@ class CiteOverlapGUI(HasTraits):
 		('Semi-colon (.csv)', ';'),
 	))
 
-	# select the given tag based on SheetTabs enum value
-	select_sheet_tab = Int(-1)
+	# handler triggers
+	selectSheetTab = Int(-1)  # tab index to select
 	renameSheetTab = Int(-1)  # tab index to rename
 	renameSheetName = Str  # new tab name
 
@@ -426,7 +426,7 @@ class CiteOverlapGUI(HasTraits):
 		if df is not None:
 			self._medlineAdapter._widths, self._medlineAdapter.columns, \
 				self._medline = self._df_to_cols(df)
-			self.select_sheet_tab = SheetTabs.MEDLINE.value
+			self.selectSheetTab = SheetTabs.MEDLINE.value - 1
 
 	@on_trait_change('_embasePath')
 	def importEmbase(self):
@@ -436,7 +436,7 @@ class CiteOverlapGUI(HasTraits):
 		if df is not None:
 			self._embaseAdapter._widths, self._embaseAdapter.columns, \
 				self._embase = self._df_to_cols(df)
-			self.select_sheet_tab = SheetTabs.EMBASE.value
+			self.selectSheetTab = SheetTabs.EMBASE.value - 1
 
 	@on_trait_change('_scopusPath')
 	def importScopus(self):
@@ -446,7 +446,7 @@ class CiteOverlapGUI(HasTraits):
 		if df is not None:
 			self._scopusAdapter._widths, self._scopusAdapter.columns, \
 				self._scopus = self._df_to_cols(df)
-			self.select_sheet_tab = SheetTabs.SCOPUS.value
+			self.selectSheetTab = SheetTabs.SCOPUS.value - 1
 
 	def _importFile(self, path, extractorPath=None):
 		"""Import a database file.
@@ -483,7 +483,7 @@ class CiteOverlapGUI(HasTraits):
 				return
 			self._overlapsAdapter._widths, self._overlapsAdapter.columns, \
 				self._overlaps = self._df_to_cols(df)
-			self.select_sheet_tab = SheetTabs.OVERLAPS.value
+			self.selectSheetTab = SheetTabs.OVERLAPS.value - 1
 			self._statusBarMsg = 'Found overlaps across databases'
 		except TypeError as e:
 			# TODO: catch additional errors that may occur with overlaps
