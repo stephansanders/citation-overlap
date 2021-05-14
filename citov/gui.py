@@ -13,7 +13,7 @@ from pyface.api import FileDialog, OK
 from traits.api import HasTraits, on_trait_change, Int, Str, Button, \
 	Array, push_exception_handler, Enum as TraitEnum, File, List, Instance, \
 	Property
-from traitsui.api import Handler, View, Item, HGroup, VGroup, Tabbed, \
+from traitsui.api import Handler, View, Item, Group, HGroup, VGroup, Tabbed, \
 	HSplit, TabularEditor, FileEditor, CheckListEditor
 from traitsui.tabular_adapter import TabularAdapter
 
@@ -114,6 +114,8 @@ class SheetTabs(Enum):
 	MEDLINE = auto()
 	EMBASE = auto()
 	SCOPUS = auto()
+	OTHER1 = auto()
+	OTHER2 = auto()
 	OVERLAPS = auto()
 
 
@@ -137,7 +139,8 @@ class CiteOverlapHandler(Handler):
 		"""
 		# find the tab widget QTabWidget and select the given tab
 		tab_widgets = info.ui.control.findChildren(QtWidgets.QTabWidget)
-		tab_widgets[0].setCurrentIndex(info.object.selectSheetTab)
+		for tab_widget in tab_widgets:
+			tab_widget.setCurrentIndex(info.object.selectSheetTab)
 	
 	def object_renameSheetName_changed(self, info):
 		"""Handler to rename sheets.
@@ -150,8 +153,9 @@ class CiteOverlapHandler(Handler):
 		"""
 		# find the tab widget QTabWidget and rename based on name trait
 		tab_widgets = info.ui.control.findChildren(QtWidgets.QTabWidget)
-		tab_widgets[0].setTabText(
-			info.object.renameSheetTab, info.object.renameSheetName)
+		for tab_widget in tab_widgets:
+			tab_widget.setTabText(
+				info.object.renameSheetTab, info.object.renameSheetName)
 
 
 class CiteImport(HasTraits):
@@ -185,6 +189,10 @@ class CiteImport(HasTraits):
 
 class CiteOverlapGUI(HasTraits):
 	"""GUI for Citation Overlap."""
+	
+	#: str: Default extractor option to prompt user to select an extractor.
+	_DEFAULT_EXTRACTOR = "Select..."
+	
 	#: OrderedDict[str, str]: Dictionary of separator descriptions to
 	# separator characters.
 	_EXPORT_SEPS = OrderedDict((
@@ -205,6 +213,9 @@ class CiteOverlapGUI(HasTraits):
 	importMedline = Instance(CiteImport)
 	importEmbase = Instance(CiteImport)
 	importScopus = Instance(CiteImport)
+	importOther1 = Instance(CiteImport)
+	importOther2 = Instance(CiteImport)
+	_importAddBtn = Button('Add Sheet')
 
 	# extractor drop-downs
 	_extractorNames = Instance(TraitsList)
@@ -219,32 +230,40 @@ class CiteOverlapGUI(HasTraits):
 	_exportSepNames = Instance(TraitsList)
 	_statusBarMsg = Str
 
-	# Medline table
+	# counter for number of "other citation" sheets
+	_numCitOther = Int(0)
+	_tabularArgs = {
+		'editable': True, 'auto_resize_rows': True,
+		'stretch_last_section': False}
+	
+	# MEDLINE table
 	_medlineAdapter = TableArrayAdapter()
-	_medlineTable = TabularEditor(
-		adapter=_medlineAdapter, editable=True, auto_resize_rows=True,
-		stretch_last_section=False)
+	_medlineTable = TabularEditor(adapter=_medlineAdapter, **_tabularArgs)
 	_medline = Array
 
 	# Embase table
 	_embaseAdapter = TableArrayAdapter()
-	_embaseTable = TabularEditor(
-		adapter=_embaseAdapter, editable=True, auto_resize_rows=True,
-		stretch_last_section=False)
+	_embaseTable = TabularEditor(adapter=_embaseAdapter, **_tabularArgs)
 	_embase = Array
 
-	# SCOPUS table
+	# Scopus table
 	_scopusAdapter = TableArrayAdapter()
-	_scopusTable = TabularEditor(
-		adapter=_scopusAdapter, editable=True, auto_resize_rows=True,
-		stretch_last_section=False)
+	_scopusTable = TabularEditor(adapter=_scopusAdapter, **_tabularArgs)
 	_scopus = Array
+
+	# Other 1 table
+	_citOther1Adapter = TableArrayAdapter()
+	_citOther1Table = TabularEditor(adapter=_citOther1Adapter, **_tabularArgs)
+	_citOther1 = Array
+
+	# Other 2 table
+	_citOther2Adapter = TableArrayAdapter()
+	_citOther2Table = TabularEditor(adapter=_citOther2Adapter, **_tabularArgs)
+	_citOther2 = Array
 
 	# Overlaps output table
 	_overlapsAdapter = TableArrayAdapter()
-	_outputTable = TabularEditor(
-		adapter=_overlapsAdapter, editable=True, auto_resize_rows=True,
-		stretch_last_section=False)
+	_outputTable = TabularEditor(adapter=_overlapsAdapter, **_tabularArgs)
 	_overlaps = Array
 
 	# controls panel
@@ -253,7 +272,20 @@ class CiteOverlapGUI(HasTraits):
 			Item('importMedline', show_label=False, style='custom'),
 			Item('importEmbase', show_label=False, style='custom'),
 			Item('importScopus', show_label=False, style='custom'),
-			Item('_extractorAddBtn', show_label=False),
+			Item(
+				'importOther1', show_label=False, style='custom',
+				visible_when='_numCitOther >= 1'
+			),
+			Item(
+				'importOther2', show_label=False, style='custom',
+				visible_when='_numCitOther >= 2'
+			),
+			HGroup(
+				Item(
+					'_importAddBtn', show_label=False, springy=True,
+					enabled_when='_numCitOther < 2'),
+				Item('_extractorAddBtn', show_label=False, springy=True),
+			),
 			label='Load Citation Files',
 		),
 		VGroup(
@@ -271,19 +303,53 @@ class CiteOverlapGUI(HasTraits):
 		),
 	)
 
-	# tabbed viewer of tables
-	_tableView = Tabbed(
+	# Tabbed viewers of tables
+	
+	# WORKAROUND: Because of an apparent limitation in adding tabs dynamically
+	# in TraitsUI (https://github.com/enthought/traitsui/pull/1456), separate
+	# views are created and toggled depending on the number of "other" sheets,
+	# toggled by the "visible_when" flag
+	
+	# default tabbed viewer
+	_tableView1 = Tabbed(
 		Item('_medline', editor=_medlineTable, show_label=False, width=1000),
 		Item('_embase', editor=_embaseTable, show_label=False),
 		Item('_scopus', editor=_scopusTable, show_label=False),
 		Item('_overlaps', editor=_outputTable, show_label=False),
+		visible_when='_numCitOther == 0',
+	)
+
+	# tabbed viewer of tables with one "other" sheet
+	_tableView2 = Tabbed(
+		Item('_medline', editor=_medlineTable, show_label=False, width=1000),
+		Item('_embase', editor=_embaseTable, show_label=False),
+		Item('_scopus', editor=_scopusTable, show_label=False),
+		Item('_citOther1', editor=_citOther1Table, show_label=False),
+		Item('_overlaps', editor=_outputTable, show_label=False),
+		visible_when='_numCitOther == 1',
+	)
+
+	# tabbed viewer of tables with two "other" sheets
+	_tableView3 = Tabbed(
+		Item('_medline', editor=_medlineTable, show_label=False, width=1000),
+		Item('_embase', editor=_embaseTable, show_label=False),
+		Item('_scopus', editor=_scopusTable, show_label=False),
+		Item('_citOther1', editor=_citOther1Table, show_label=False),
+		Item('_citOther2', editor=_citOther2Table, show_label=False),
+		Item('_overlaps', editor=_outputTable, show_label=False),
+		visible_when='_numCitOther == 2',
 	)
 
 	# main view
 	view = View(
 		HSplit(
 			_controlsPanel,
-			_tableView,
+			# only one table view should be displayed at a time
+			Group(
+				_tableView1,
+				_tableView2,
+				_tableView3,
+			),
 		),
 		width=1300,  # also influenced by _tableView width
 		height=800,
@@ -301,10 +367,14 @@ class CiteOverlapGUI(HasTraits):
 		self.importMedline = CiteImport(tab=SheetTabs.MEDLINE)
 		self.importEmbase = CiteImport(tab=SheetTabs.EMBASE)
 		self.importScopus = CiteImport(tab=SheetTabs.SCOPUS)
+		self.importOther1 = CiteImport(tab=SheetTabs.OTHER1)
+		self.importOther2 = CiteImport(tab=SheetTabs.OTHER2)
 		self.importViews = (
 			self.importMedline,
 			self.importEmbase,
-			self.importScopus
+			self.importScopus,
+			self.importOther1,
+			self.importOther2,
 		)
 
 		# populate drop-down of available extractors from directory of
@@ -341,12 +411,16 @@ class CiteOverlapGUI(HasTraits):
 		if reset:
 			# pick default selections for each extractor
 			selections = [e.value for e in extractor.DefaultExtractors]
+			numExtra = len(self.importViews) - len(selections)
+			if numExtra > 0:
+				selections.extend([self._DEFAULT_EXTRACTOR] * numExtra)
 		else:
 			# keep current selections
 			selections = [v.extractor for v in self.importViews]
 		# update combo box from extractor path keys
 		self._extractorNames = TraitsList()
-		extractorNames = list(self._extractor_paths.keys())
+		extractorNames = [self._DEFAULT_EXTRACTOR]
+		extractorNames.extend(self._extractor_paths.keys())
 		self._extractorNames.selections = extractorNames
 		
 		# assign default extractor selections
@@ -400,6 +474,13 @@ class CiteOverlapGUI(HasTraits):
 		
 		return widths, colsIDs, df.to_numpy()
 
+	@on_trait_change('_importAddBtn')
+	def addImport(self):
+		"""Add import fields and a new sheet."""
+		if self._numCitOther < 2:
+			# trigger additional import view and tab with new sheet
+			self._numCitOther += 1
+
 	@on_trait_change('_extractorAddBtn')
 	def addExtractor(self):
 		"""Add an extractor to the combo box."""
@@ -448,6 +529,14 @@ class CiteOverlapGUI(HasTraits):
 				elif event.object.tab is SheetTabs.SCOPUS:
 					self._scopusAdapter._widths, self._scopusAdapter.columns, \
 						self._scopus = dfColOut
+				elif event.object.tab is SheetTabs.OTHER1:
+					self._citOther1Adapter._widths, \
+						self._citOther1Adapter.columns, \
+						self._citOther1 = dfColOut
+				elif event.object.tab is SheetTabs.OTHER2:
+					self._citOther2Adapter._widths, \
+						self._citOther2Adapter.columns, \
+						self._citOther2 = dfColOut
 				self.selectSheetTab = event.object.tab.value - 1
 			return df
 		except (FileNotFoundError, SyntaxError) as e:
@@ -463,7 +552,8 @@ class CiteOverlapGUI(HasTraits):
 				return
 			self._overlapsAdapter._widths, self._overlapsAdapter.columns, \
 				self._overlaps = self._df_to_cols(df)
-			self.selectSheetTab = SheetTabs.OVERLAPS.value - 1
+			self.selectSheetTab = SheetTabs.OVERLAPS.value - 3 + \
+				self._numCitOther
 			self._statusBarMsg = 'Found overlaps across databases'
 		except TypeError as e:
 			# TODO: catch additional errors that may occur with overlaps
