@@ -11,8 +11,7 @@ from PyQt5 import QtWidgets, QtCore
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 from pyface.api import FileDialog, OK
 from traits.api import HasTraits, on_trait_change, Int, Str, Button, \
-	Array, push_exception_handler, Enum as TraitEnum, File, List, Instance, \
-	Property
+	Array, push_exception_handler, File, List, Instance, Property
 from traitsui.api import Handler, View, Item, Group, HGroup, VGroup, Tabbed, \
 	HSplit, TabularEditor, FileEditor, CheckListEditor
 from traitsui.tabular_adapter import TabularAdapter
@@ -110,17 +109,10 @@ class TableArrayAdapter(TabularAdapter):
 		return self.item[self._get_col('Subgrp')]
 
 
-class SheetTabs(Enum):
-	MEDLINE = auto()
-	EMBASE = auto()
-	SCOPUS = auto()
-	OTHER1 = auto()
-	OTHER2 = auto()
-	OVERLAPS = auto()
-
-
 class CiteOverlapHandler(Handler):
 	"""Custom handler for Citation Overlap GUI object events."""
+	
+	TAB_OVERLAPS = "Overlaps"
 
 	def init(self, info):
 		"""Perform GUI initialization tasks."""
@@ -171,7 +163,7 @@ class CiteOverlapHandler(Handler):
 			tabi = info.object.renameSheetTab
 			name = (
 				info.object.renameSheetName if tabi < tabCount - 1
-				else SheetTabs.OVERLAPS.name.lower())
+				else self.TAB_OVERLAPS)
 			tab_widget.setTabText(tabi, name)
 
 
@@ -191,7 +183,6 @@ class CiteImport(HasTraits):
 	extractor = Str()  # extractor filename in extractorNames
 	extractorNames = Instance(TraitsList)  # list of extractor filenames
 	path = File()  # citation list path
-	tab = TraitEnum(SheetTabs)  # associated tab in sheets widget
 	sheet = Instance(CiteSheet)  # associated sheet
 	
 	# TraitsUI default view
@@ -394,14 +385,11 @@ class CiteOverlapGUI(HasTraits):
 		super().__init__()
 		
 		# set up import views
-		self.importMedline = CiteImport(
-			tab=SheetTabs.MEDLINE, sheet=self._medline)
-		self.importEmbase = CiteImport(tab=SheetTabs.EMBASE, sheet=self._embase)
-		self.importScopus = CiteImport(tab=SheetTabs.SCOPUS, sheet=self._scopus)
-		self.importOther1 = CiteImport(
-			tab=SheetTabs.OTHER1, sheet=self._citOther1)
-		self.importOther2 = CiteImport(
-			tab=SheetTabs.OTHER2, sheet=self._citOther2)
+		self.importMedline = CiteImport(sheet=self._medline)
+		self.importEmbase = CiteImport(sheet=self._embase)
+		self.importScopus = CiteImport(sheet=self._scopus)
+		self.importOther1 = CiteImport(sheet=self._citOther1)
+		self.importOther2 = CiteImport(sheet=self._citOther2)
 		self.importViews = (
 			self.importMedline,
 			self.importEmbase,
@@ -468,7 +456,7 @@ class CiteOverlapGUI(HasTraits):
 			event (:class:`traits.observation.events.TraitChangeEvent`): Event.
 
 		"""
-		self.renameSheetTab = event.object.tab.value - 1
+		self.renameSheetTab = self.importViews.index(event.object)
 		self.renameSheetName = self.renameTab(event.object.extractor)
 
 	@staticmethod
@@ -565,7 +553,7 @@ class CiteOverlapGUI(HasTraits):
 				# output data frame to associated table
 				sheet.adapter._widths, sheet.adapter.columns, sheet.data = \
 					self._df_to_cols(df)
-				self.selectSheetTab = event.object.tab.value - 1
+				self.selectSheetTab = self.importViews.index(event.object)
 			return df
 		except (FileNotFoundError, SyntaxError) as e:
 			self._statusBarMsg = str(e)
@@ -580,8 +568,7 @@ class CiteOverlapGUI(HasTraits):
 				return
 			self._overlaps.adapter._widths, self._overlaps.adapter.columns, \
 				self._overlaps.data = self._df_to_cols(df)
-			self.selectSheetTab = SheetTabs.OVERLAPS.value - 3 + \
-				self._numCitOther
+			self.selectSheetTab = 3 + self._numCitOther
 			self._statusBarMsg = 'Found overlaps across databases'
 		except TypeError as e:
 			# TODO: catch additional errors that may occur with overlaps
