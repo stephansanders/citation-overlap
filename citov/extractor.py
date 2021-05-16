@@ -57,7 +57,6 @@ class DbExtractor(overlapper.DbMatcher):
 		super().__init__()
 		self.saveSep = saveSep
 
-		self.globalJournalKeyDict = {}
 		self.dfsParsed = OrderedDict()
 		self.dfOverlaps = None
 
@@ -209,7 +208,6 @@ class DbExtractor(overlapper.DbMatcher):
 				pmid: self.globalPmidDict,
 				authorKey: self.globalAuthorKeyDict,
 				titleMin: self.globalTitleMinDict,
-				journalKey: self.globalJournalKeyDict
 			}
 			for key, dbDict in dbDicts.items():
 				dbDict[key] = f'{dbDict[key]};{dbId}' if key in dbDict else dbId
