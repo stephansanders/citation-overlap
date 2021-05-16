@@ -129,6 +129,17 @@ class CiteOverlapHandler(Handler):
 		for table in table_widgets:
 			table.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignLeft)
 
+		for i, view in enumerate(info.object.importViews):
+			# rename tabs in all tabbed panes since the CiteImport triggered
+			# names appear to be overridden
+			info.object.renameSheetTab = i
+			info.object.renameSheetName = info.object.renameTab(view.extractor)
+			self.object_renameSheetName_changed(info)
+		
+		# trigger renaming the overlaps tab in the largest tabbed pane
+		info.object.renameSheetTab = len(info.object.importViews)
+		info.object.renameSheetName = ''
+
 	def object_selectSheetTab_changed(self, info):
 		"""Select the given tab specified by
 		:attr:`CiteOverlapGUI.selectSheetTab`.
@@ -151,11 +162,23 @@ class CiteOverlapHandler(Handler):
 		Returns:
 
 		"""
-		# find the tab widget QTabWidget and rename based on name trait
+		# find all tabbed panes, which contain different numbers of "other" tabs
 		tab_widgets = info.ui.control.findChildren(QtWidgets.QTabWidget)
 		for tab_widget in tab_widgets:
-			tab_widget.setTabText(
-				info.object.renameSheetTab, info.object.renameSheetName)
+			# rename tab from name trait unless the last tab, assumed to be
+			# the overlaps tab
+			tabCount = tab_widget.count()
+			tabi = info.object.renameSheetTab
+			name = (
+				info.object.renameSheetName if tabi < tabCount - 1
+				else SheetTabs.OVERLAPS.name.lower())
+			tab_widget.setTabText(tabi, name)
+
+
+class CiteSheet(HasTraits):
+	"""Spreadsheet for citation array."""
+	adapter = TableArrayAdapter  # adapter for TabularAdapter
+	data = Array  # citation array
 
 
 class CiteImport(HasTraits):
@@ -169,6 +192,7 @@ class CiteImport(HasTraits):
 	extractorNames = Instance(TraitsList)  # list of extractor filenames
 	path = File()  # citation list path
 	tab = TraitEnum(SheetTabs)  # associated tab in sheets widget
+	sheet = Instance(CiteSheet)  # associated sheet
 	
 	# TraitsUI default view
 	traits_view = View(
@@ -239,32 +263,32 @@ class CiteOverlapGUI(HasTraits):
 	# MEDLINE table
 	_medlineAdapter = TableArrayAdapter()
 	_medlineTable = TabularEditor(adapter=_medlineAdapter, **_tabularArgs)
-	_medline = Array
+	_medline = CiteSheet(adapter=_medlineAdapter)
 
 	# Embase table
 	_embaseAdapter = TableArrayAdapter()
 	_embaseTable = TabularEditor(adapter=_embaseAdapter, **_tabularArgs)
-	_embase = Array
+	_embase = CiteSheet(adapter=_embaseAdapter)
 
 	# Scopus table
 	_scopusAdapter = TableArrayAdapter()
 	_scopusTable = TabularEditor(adapter=_scopusAdapter, **_tabularArgs)
-	_scopus = Array
+	_scopus = CiteSheet(adapter=_scopusAdapter)
 
 	# Other 1 table
 	_citOther1Adapter = TableArrayAdapter()
 	_citOther1Table = TabularEditor(adapter=_citOther1Adapter, **_tabularArgs)
-	_citOther1 = Array
+	_citOther1 = CiteSheet(adapter=_citOther1Adapter)
 
 	# Other 2 table
 	_citOther2Adapter = TableArrayAdapter()
 	_citOther2Table = TabularEditor(adapter=_citOther2Adapter, **_tabularArgs)
-	_citOther2 = Array
+	_citOther2 = CiteSheet(adapter=_citOther2Adapter)
 
 	# Overlaps output table
 	_overlapsAdapter = TableArrayAdapter()
 	_outputTable = TabularEditor(adapter=_overlapsAdapter, **_tabularArgs)
-	_overlaps = Array
+	_overlaps = CiteSheet(adapter=_overlapsAdapter)
 
 	# controls panel
 	_controlsPanel = VGroup(
@@ -312,31 +336,37 @@ class CiteOverlapGUI(HasTraits):
 	
 	# default tabbed viewer
 	_tableView1 = Tabbed(
-		Item('_medline', editor=_medlineTable, show_label=False, width=1000),
-		Item('_embase', editor=_embaseTable, show_label=False),
-		Item('_scopus', editor=_scopusTable, show_label=False),
-		Item('_overlaps', editor=_outputTable, show_label=False),
+		Item(
+			'object._medline.data', editor=_medlineTable, show_label=False,
+			width=1000),
+		Item('object._embase.data', editor=_embaseTable, show_label=False),
+		Item('object._scopus.data', editor=_scopusTable, show_label=False),
+		Item('object._overlaps.data', editor=_outputTable, show_label=False),
 		visible_when='_numCitOther == 0',
 	)
 
 	# tabbed viewer of tables with one "other" sheet
 	_tableView2 = Tabbed(
-		Item('_medline', editor=_medlineTable, show_label=False, width=1000),
-		Item('_embase', editor=_embaseTable, show_label=False),
-		Item('_scopus', editor=_scopusTable, show_label=False),
-		Item('_citOther1', editor=_citOther1Table, show_label=False),
-		Item('_overlaps', editor=_outputTable, show_label=False),
+		Item(
+			'object._medline.data', editor=_medlineTable, show_label=False,
+			width=1000),
+		Item('object._embase.data', editor=_embaseTable, show_label=False),
+		Item('object._scopus.data', editor=_scopusTable, show_label=False),
+		Item('object._citOther1.data', editor=_citOther1Table, show_label=False),
+		Item('object._overlaps.data', editor=_outputTable, show_label=False),
 		visible_when='_numCitOther == 1',
 	)
 
 	# tabbed viewer of tables with two "other" sheets
 	_tableView3 = Tabbed(
-		Item('_medline', editor=_medlineTable, show_label=False, width=1000),
-		Item('_embase', editor=_embaseTable, show_label=False),
-		Item('_scopus', editor=_scopusTable, show_label=False),
-		Item('_citOther1', editor=_citOther1Table, show_label=False),
-		Item('_citOther2', editor=_citOther2Table, show_label=False),
-		Item('_overlaps', editor=_outputTable, show_label=False),
+		Item(
+			'object._medline.data', editor=_medlineTable, show_label=False,
+			width=1000),
+		Item('object._embase.data', editor=_embaseTable, show_label=False),
+		Item('object._scopus.data', editor=_scopusTable, show_label=False),
+		Item('object._citOther1.data', editor=_citOther1Table, show_label=False),
+		Item('object._citOther2.data', editor=_citOther2Table, show_label=False),
+		Item('object._overlaps.data', editor=_outputTable, show_label=False),
 		visible_when='_numCitOther == 2',
 	)
 
@@ -364,11 +394,14 @@ class CiteOverlapGUI(HasTraits):
 		super().__init__()
 		
 		# set up import views
-		self.importMedline = CiteImport(tab=SheetTabs.MEDLINE)
-		self.importEmbase = CiteImport(tab=SheetTabs.EMBASE)
-		self.importScopus = CiteImport(tab=SheetTabs.SCOPUS)
-		self.importOther1 = CiteImport(tab=SheetTabs.OTHER1)
-		self.importOther2 = CiteImport(tab=SheetTabs.OTHER2)
+		self.importMedline = CiteImport(
+			tab=SheetTabs.MEDLINE, sheet=self._medline)
+		self.importEmbase = CiteImport(tab=SheetTabs.EMBASE, sheet=self._embase)
+		self.importScopus = CiteImport(tab=SheetTabs.SCOPUS, sheet=self._scopus)
+		self.importOther1 = CiteImport(
+			tab=SheetTabs.OTHER1, sheet=self._citOther1)
+		self.importOther2 = CiteImport(
+			tab=SheetTabs.OTHER2, sheet=self._citOther2)
 		self.importViews = (
 			self.importMedline,
 			self.importEmbase,
@@ -386,7 +419,7 @@ class CiteOverlapGUI(HasTraits):
 			os.path.basename(f): f for f in extractor_paths}
 		self._updateExtractorNames(True)
 		for importer in self.importViews:
-			importer.observe(self.renameTab, "extractor")
+			importer.observe(self.renameTabEvent, "extractor")
 			importer.observe(self.importFile, "path")
 
 		# populate drop-down of separators/delimiters
@@ -428,16 +461,26 @@ class CiteOverlapGUI(HasTraits):
 			view.extractorNames = self._extractorNames
 			view.extractor = selection
 	
-	def renameTab(self, event):
-		"""Rename spreadsheet tab.
+	def renameTabEvent(self, event):
+		"""Handler to rename a spreadsheet tab.
 		
 		Args:
 			event (:class:`traits.observation.events.TraitChangeEvent`): Event.
 
 		"""
 		self.renameSheetTab = event.object.tab.value - 1
-		self.renameSheetName = os.path.splitext(event.object.extractor)[0]
-	
+		self.renameSheetName = self.renameTab(event.object.extractor)
+
+	@staticmethod
+	def renameTab(path):
+		"""Rename a spreadsheet tab.
+
+		Args:
+			path (str): Extractor path.
+
+		"""
+		return os.path.splitext(path)[0]
+
 	@staticmethod
 	def _df_to_cols(df):
 		"""Convert a data frame to table columns with widths adjusted to
@@ -517,26 +560,11 @@ class CiteOverlapGUI(HasTraits):
 			extractorPath = self._extractor_paths[event.object.extractor]
 			df, dbName = self.dbExtractor.extractDb(path, extractorPath)
 			self._statusBarMsg = f'Imported file from {path}'
-			if df is not None:
+			sheet = event.object.sheet
+			if df is not None and sheet is not None:
 				# output data frame to associated table
-				dfColOut = self._df_to_cols(df)
-				if event.object.tab is SheetTabs.MEDLINE:
-					self._medlineAdapter._widths, self._medlineAdapter.columns, \
-						self._medline = dfColOut
-				elif event.object.tab is SheetTabs.EMBASE:
-					self._embaseAdapter._widths, self._embaseAdapter.columns, \
-						self._embase = dfColOut
-				elif event.object.tab is SheetTabs.SCOPUS:
-					self._scopusAdapter._widths, self._scopusAdapter.columns, \
-						self._scopus = dfColOut
-				elif event.object.tab is SheetTabs.OTHER1:
-					self._citOther1Adapter._widths, \
-						self._citOther1Adapter.columns, \
-						self._citOther1 = dfColOut
-				elif event.object.tab is SheetTabs.OTHER2:
-					self._citOther2Adapter._widths, \
-						self._citOther2Adapter.columns, \
-						self._citOther2 = dfColOut
+				sheet.adapter._widths, sheet.adapter.columns, sheet.data = \
+					self._df_to_cols(df)
 				self.selectSheetTab = event.object.tab.value - 1
 			return df
 		except (FileNotFoundError, SyntaxError) as e:
@@ -550,8 +578,8 @@ class CiteOverlapGUI(HasTraits):
 			df = self.dbExtractor.combineOverlaps()
 			if df is None:
 				return
-			self._overlapsAdapter._widths, self._overlapsAdapter.columns, \
-				self._overlaps = self._df_to_cols(df)
+			self._overlaps.adapter._widths, self._overlaps.adapter.columns, \
+				self._overlaps.data = self._df_to_cols(df)
 			self.selectSheetTab = SheetTabs.OVERLAPS.value - 3 + \
 				self._numCitOther
 			self._statusBarMsg = 'Found overlaps across databases'
