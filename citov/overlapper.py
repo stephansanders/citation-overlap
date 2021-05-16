@@ -72,34 +72,19 @@ class DbMatcher:
 	Attributes:
 		dbsParsed (OrderedDict[str, dict]): Dictionary of database names to
 			parsed database dictionaries; defaults to an empty dictionary.
-		globalPmidDict (dict): PubMed ID dict.
-		globalAuthorKeyDict (dict): Author keys dict.
-		globalTitleMinDict (dict): Short title dict.
 	
 	"""
 	def __init__(
-			self, dbsParsed=None, globalPmidDict=None, globalAuthorKeyDict=None,
-			globalTitleMinDict=None, **kwargs):
+			self, dbsParsed=None, **kwargs):
 		"""Create a database matcher instance.
 		
 		Args:
 			dbsParsed (OrderedDict[str, dict]): Parsed databases dict; defaults
 				to None to give an `OrderedDict`.
-			globalPmidDict (dict): PubMed ID dict; defaults to None to give an
-				empty dict.
-			globalAuthorKeyDict (dict): Author keys dict; defaults to None to
-				give an empty dict.
-			globalTitleMinDict (dict): Short title dict; defaults to None to
-				give an empty dict.
 			**kwargs: 
 		
 		"""
 		self.dbsParsed = OrderedDict() if dbsParsed is None else dbsParsed
-		self.globalPmidDict = {} if globalPmidDict is None else globalPmidDict
-		self.globalAuthorKeyDict = (
-			{} if globalAuthorKeyDict is None else globalAuthorKeyDict)
-		self.globalTitleMinDict = (
-			{} if globalTitleMinDict is None else globalTitleMinDict)
 	
 	@staticmethod
 	def makeMatches(
@@ -133,9 +118,36 @@ class DbMatcher:
 
 
 class DbOverlapper(DbMatcher):
-	"""Database overlapper class."""
+	"""Database overlapper class.
+	
+	Attributes:
+		globalPmidDict (dict): PubMed ID dict.
+		globalAuthorKeyDict (dict): Author keys dict.
+		globalTitleMinDict (dict): Short title dict.
+	
+	"""
 	def __init__(self, *kargs, **kwargs):
 		super().__init__(*kargs, **kwargs)
+		self.globalPmidDict = {}
+		self.globalAuthorKeyDict = {}
+		self.globalTitleMinDict = {}
+		
+		# find citation matches across databases
+		for dbName, dbParsed in self.dbsParsed.items():
+			for dbId, extraction in dbParsed.items():
+				pmid = extraction[ExtractKeys.PMID]
+				authorKey = extraction[ExtractKeys.AUTHOR_KEY]
+				titleMin = extraction[ExtractKeys.TITLE_MIN]
+				dbDicts = {
+					pmid: self.globalPmidDict,
+					authorKey: self.globalAuthorKeyDict,
+					titleMin: self.globalTitleMinDict,
+				}
+				for key, dbDict in dbDicts.items():
+					# append to existing database ID matches in cross-
+					# database dict
+					dbDict[key] = f'{dbDict[key]};{dbId}' if key in dbDict \
+						else dbId
 	
 	def getDetails(self, extraId):
 		"""Get PMID, authorKey and TitleMin for a given ID.

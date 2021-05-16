@@ -203,15 +203,6 @@ class DbExtractor(overlapper.DbMatcher):
 			else:
 				journalKeyDict[journalKey] = dbId
 
-			# Record global matches
-			dbDicts = {
-				pmid: self.globalPmidDict,
-				authorKey: self.globalAuthorKeyDict,
-				titleMin: self.globalTitleMinDict,
-			}
-			for key, dbDict in dbDicts.items():
-				dbDict[key] = f'{dbDict[key]};{dbId}' if key in dbDict else dbId
-
 		# Print out the file
 		keyList = procDict.keys()
 		matchCount = 0
@@ -353,9 +344,7 @@ class DbExtractor(overlapper.DbMatcher):
 		idToDistance = {}
 		globalmatchCount = 0
 
-		dbOverlapper = overlapper.DbOverlapper(
-			self.dbsParsed, self.globalPmidDict, self.globalAuthorKeyDict,
-			self.globalTitleMinDict)
+		dbOverlapper = overlapper.DbOverlapper(self.dbsParsed)
 		for dbName, dbDict in self.dbsParsed.items():
 			# find overlaps among parsed dicts
 			globalmatchCount = dbOverlapper.findOverlaps(
