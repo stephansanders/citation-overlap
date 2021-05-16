@@ -6,6 +6,7 @@ from enum import Enum, auto
 import glob
 import os
 
+import numpy as np
 from PyQt5 import QtWidgets, QtCore
 # adjust density for HiDPI screens
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
@@ -201,6 +202,7 @@ class CiteImport(HasTraits):
 	extractorNames = Instance(TraitsList)  # list of extractor filenames
 	path = File()  # citation list path
 	sheet = Instance(CiteSheet)  # associated sheet
+	clearBtn = Button('Clear')  # button to clear data
 	
 	# TraitsUI default view
 	traits_view = View(
@@ -213,9 +215,12 @@ class CiteImport(HasTraits):
 						name="object.extractorNames.selections",
 						format_func=_displayExtractor)),
 			),
-			Item(
-				'path', show_label=False, style='simple',
-				editor=FileEditor(allow_dir=True)),
+			HGroup(
+				Item(
+					'path', show_label=False, style='simple', springy=True,
+					editor=FileEditor(allow_dir=True)),
+				Item('clearBtn', show_label=False),
+			),
 		),
 	)
 	
@@ -494,6 +499,7 @@ class CiteOverlapGUI(HasTraits):
 		for importer in self.importViews:
 			importer.observe(self.renameTabEvent, "extractor")
 			importer.observe(self.importFile, "path")
+			importer.observe(self.clearSheet, "clearBtn")
 
 		# populate drop-down of separators/delimiters
 		self._exportSepNames = TraitsList()
@@ -544,6 +550,17 @@ class CiteOverlapGUI(HasTraits):
 		self.renameSheetTab = self.importViews.index(event.object)
 		self.renameSheetName = _displayExtractor(event.object.extractor)
 
+	def clearSheet(self, event):
+		"""Clear the sheet associated with an import view.
+		
+		Args:
+			event (:class:`traits.observation.events.TraitChangeEvent`): Event.
+
+		"""
+		event.object.sheet.data = np.empty((0, 0))
+		del self.dbExtractor.dbsParsed[event.object.dbName]
+		event.object.path = ''
+	
 	@staticmethod
 	def _df_to_cols(df):
 		"""Convert a data frame to table columns with widths adjusted to
@@ -614,8 +631,9 @@ class CiteOverlapGUI(HasTraits):
 		"""
 		path = event.object.path
 		if not os.path.exists(path):
-			# file inaccessible, or manually edited, non-accessible path
-			self._statusBarMsg = f'{path} could not be found, skipping'
+			if path:
+				# file inaccessible, or manually edited, non-accessible path
+				self._statusBarMsg = f'{path} could not be found, skipping'
 			return None
 		self._save_dir = os.path.dirname(path)
 
@@ -640,13 +658,20 @@ class CiteOverlapGUI(HasTraits):
 	def findOverlaps(self):
 		"""Find overlaps."""
 		try:
+			# find overlaps
 			df = self.dbExtractor.combineOverlaps()
 			if df is None:
+				# clear any existing data in sheet if no citation lists
+				self._overlaps.data = np.empty((0, 0))
+				self._statusBarMsg = 'No citation lists found'
 				return
+			
+			# populate overlaps sheet
 			self._overlaps.adapter._widths, self._overlaps.adapter.columns, \
 				self._overlaps.data = self._df_to_cols(df)
 			self.selectSheetTab = self._DEFAULT_NUM_IMPORTS + self._numCitOther
 			self._statusBarMsg = 'Found overlaps across databases'
+			
 		except TypeError as e:
 			# TODO: catch additional errors that may occur with overlaps
 			msg = 'An erorr occurred while finding overlaps across databases.' \
