@@ -26,6 +26,19 @@ def main():
 	gui.configure_traits()
 
 
+def _displayExtractor(path):
+	"""Convert an extractor filename for display.
+	
+	Args:
+		path (str): Path.
+
+	Returns:
+		str: ``path`` in title case and without extension.
+
+	"""
+	return os.path.splitext(path)[0].title()
+
+
 class TraitsList(HasTraits):
 	"""Generic Traits-enabled list."""
 	selections = List([""])
@@ -125,7 +138,7 @@ class CiteOverlapHandler(Handler):
 			# rename tabs in all tabbed panes since the CiteImport triggered
 			# names appear to be overridden
 			info.object.renameSheetTab = i
-			info.object.renameSheetName = info.object.renameTab(view.extractor)
+			info.object.renameSheetName = _displayExtractor(view.extractor)
 			self.object_renameSheetName_changed(info)
 		
 		# trigger renaming the overlaps tab in the largest tabbed pane
@@ -191,9 +204,10 @@ class CiteImport(HasTraits):
 			HGroup(
 				Item(
 					"extractor", label='File source', springy=True,
+					# convert extractor filename for display
 					editor=CheckListEditor(
 						name="object.extractorNames.selections",
-						format_func=lambda x: os.path.splitext(x)[0])),
+						format_func=_displayExtractor)),
 			),
 			Item(
 				'path', show_label=False, style='simple',
@@ -457,17 +471,7 @@ class CiteOverlapGUI(HasTraits):
 
 		"""
 		self.renameSheetTab = self.importViews.index(event.object)
-		self.renameSheetName = self.renameTab(event.object.extractor)
-
-	@staticmethod
-	def renameTab(path):
-		"""Rename a spreadsheet tab.
-
-		Args:
-			path (str): Extractor path.
-
-		"""
-		return os.path.splitext(path)[0]
+		self.renameSheetName = _displayExtractor(event.object.extractor)
 
 	@staticmethod
 	def _df_to_cols(df):
