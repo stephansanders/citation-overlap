@@ -222,6 +222,9 @@ class CiteOverlapGUI(HasTraits):
 	#: str: Default extractor option to prompt user to select an extractor.
 	_DEFAULT_EXTRACTOR = "Select..."
 	
+	#: int: Default number of import views.
+	_DEFAULT_NUM_IMPORTS = 3
+	
 	#: OrderedDict[str, str]: Dictionary of separator descriptions to
 	# separator characters.
 	_EXPORT_SEPS = OrderedDict((
@@ -312,7 +315,7 @@ class CiteOverlapGUI(HasTraits):
 			HGroup(
 				Item(
 					'_importAddBtn', show_label=False, springy=True,
-					enabled_when='_numCitOther < 2'),
+					enabled_when='_numCitOther <= object._DEFAULT_NUM_IMPORTS'),
 				Item('_extractorAddBtn', show_label=False, springy=True),
 			),
 			label='Load Citation Files',
@@ -512,7 +515,8 @@ class CiteOverlapGUI(HasTraits):
 	@on_trait_change('_importAddBtn')
 	def addImport(self):
 		"""Add import fields and a new sheet."""
-		if self._numCitOther < 2:
+		if self._numCitOther < len(
+				self.importViews) - self._DEFAULT_NUM_IMPORTS:
 			# trigger additional import view and tab with new sheet
 			self._numCitOther += 1
 
@@ -572,7 +576,7 @@ class CiteOverlapGUI(HasTraits):
 				return
 			self._overlaps.adapter._widths, self._overlaps.adapter.columns, \
 				self._overlaps.data = self._df_to_cols(df)
-			self.selectSheetTab = 3 + self._numCitOther
+			self.selectSheetTab = self._DEFAULT_NUM_IMPORTS + self._numCitOther
 			self._statusBarMsg = 'Found overlaps across databases'
 		except TypeError as e:
 			# TODO: catch additional errors that may occur with overlaps
