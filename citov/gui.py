@@ -192,6 +192,10 @@ class CiteImport(HasTraits):
 	Provides a view to select the extractor definition file and citation
 	file to import.
 	
+	Attributes:
+		sheet (:class:`CiteSheet`): Spreadsheet displaying the imported data.
+		dbName (str): Name of imported database.
+	
 	"""
 	extractor = Str()  # extractor filename in extractorNames
 	extractorNames = Instance(TraitsList)  # list of extractor filenames
@@ -214,6 +218,12 @@ class CiteImport(HasTraits):
 				editor=FileEditor(allow_dir=True)),
 		),
 	)
+	
+	def __init__(self, sheet):
+		"""Initialize import view."""
+		super().__init__()
+		self.sheet = sheet
+		self.dbName = None
 
 
 class CiteOverlapGUI(HasTraits):
@@ -613,6 +623,7 @@ class CiteOverlapGUI(HasTraits):
 			# extract file
 			extractorPath = self._extractor_paths[event.object.extractor]
 			df, dbName = self.dbExtractor.extractDb(path, extractorPath)
+			event.object.dbName = dbName
 			self._statusBarMsg = f'Imported file from {path}'
 			sheet = event.object.sheet
 			if df is not None and sheet is not None:
