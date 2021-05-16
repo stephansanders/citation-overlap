@@ -247,6 +247,8 @@ class CiteOverlapGUI(HasTraits):
 	importScopus = Instance(CiteImport)
 	importOther1 = Instance(CiteImport)
 	importOther2 = Instance(CiteImport)
+	importOther3 = Instance(CiteImport)
+	importOther4 = Instance(CiteImport)
 	_importAddBtn = Button('Add Sheet')
 
 	# extractor drop-downs
@@ -267,6 +269,9 @@ class CiteOverlapGUI(HasTraits):
 	_tabularArgs = {
 		'editable': True, 'auto_resize_rows': True,
 		'stretch_last_section': False}
+	
+	# Import view groups, which need an adapter set here to avoid sharing
+	# the adapter across view instances
 	
 	# MEDLINE table
 	_medlineAdapter = TableArrayAdapter()
@@ -293,6 +298,16 @@ class CiteOverlapGUI(HasTraits):
 	_citOther2Table = TabularEditor(adapter=_citOther2Adapter, **_tabularArgs)
 	_citOther2 = CiteSheet(adapter=_citOther2Adapter)
 
+	# Other 3 table
+	_citOther3Adapter = TableArrayAdapter()
+	_citOther3Table = TabularEditor(adapter=_citOther3Adapter, **_tabularArgs)
+	_citOther3 = CiteSheet(adapter=_citOther3Adapter)
+
+	# Other 4 table
+	_citOther4Adapter = TableArrayAdapter()
+	_citOther4Table = TabularEditor(adapter=_citOther4Adapter, **_tabularArgs)
+	_citOther4 = CiteSheet(adapter=_citOther4Adapter)
+
 	# Overlaps output table
 	_overlapsAdapter = TableArrayAdapter()
 	_outputTable = TabularEditor(adapter=_overlapsAdapter, **_tabularArgs)
@@ -311,6 +326,14 @@ class CiteOverlapGUI(HasTraits):
 			Item(
 				'importOther2', show_label=False, style='custom',
 				visible_when='_numCitOther >= 2'
+			),
+			Item(
+				'importOther3', show_label=False, style='custom',
+				visible_when='_numCitOther >= 3'
+			),
+			Item(
+				'importOther4', show_label=False, style='custom',
+				visible_when='_numCitOther >= 4'
 			),
 			HGroup(
 				Item(
@@ -378,6 +401,35 @@ class CiteOverlapGUI(HasTraits):
 		visible_when='_numCitOther == 2',
 	)
 
+	# tabbed viewer of tables with three "other" sheets
+	_tableView4 = Tabbed(
+		Item(
+			'object._medline.data', editor=_medlineTable, show_label=False,
+			width=1000),
+		Item('object._embase.data', editor=_embaseTable, show_label=False),
+		Item('object._scopus.data', editor=_scopusTable, show_label=False),
+		Item('object._citOther1.data', editor=_citOther1Table, show_label=False),
+		Item('object._citOther2.data', editor=_citOther2Table, show_label=False),
+		Item('object._citOther3.data', editor=_citOther2Table, show_label=False),
+		Item('object._overlaps.data', editor=_outputTable, show_label=False),
+		visible_when='_numCitOther == 3',
+	)
+
+	# tabbed viewer of tables with four "other" sheets
+	_tableView5 = Tabbed(
+		Item(
+			'object._medline.data', editor=_medlineTable, show_label=False,
+			width=1000),
+		Item('object._embase.data', editor=_embaseTable, show_label=False),
+		Item('object._scopus.data', editor=_scopusTable, show_label=False),
+		Item('object._citOther1.data', editor=_citOther1Table, show_label=False),
+		Item('object._citOther2.data', editor=_citOther2Table, show_label=False),
+		Item('object._citOther3.data', editor=_citOther2Table, show_label=False),
+		Item('object._citOther4.data', editor=_citOther2Table, show_label=False),
+		Item('object._overlaps.data', editor=_outputTable, show_label=False),
+		visible_when='_numCitOther == 4',
+	)
+
 	# main view
 	view = View(
 		HSplit(
@@ -387,6 +439,8 @@ class CiteOverlapGUI(HasTraits):
 				_tableView1,
 				_tableView2,
 				_tableView3,
+				_tableView4,
+				_tableView5,
 			),
 		),
 		width=1300,  # also influenced by _tableView width
@@ -407,12 +461,16 @@ class CiteOverlapGUI(HasTraits):
 		self.importScopus = CiteImport(sheet=self._scopus)
 		self.importOther1 = CiteImport(sheet=self._citOther1)
 		self.importOther2 = CiteImport(sheet=self._citOther2)
+		self.importOther3 = CiteImport(sheet=self._citOther3)
+		self.importOther4 = CiteImport(sheet=self._citOther4)
 		self.importViews = (
 			self.importMedline,
 			self.importEmbase,
 			self.importScopus,
 			self.importOther1,
 			self.importOther2,
+			self.importOther3,
+			self.importOther4,
 		)
 
 		# populate drop-down of available extractors from directory of
