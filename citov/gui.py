@@ -34,10 +34,10 @@ def _displayExtractor(path):
 		path (str): Path.
 
 	Returns:
-		str: ``path`` in title case and without extension.
+		str: ``path`` without extension.
 
 	"""
-	return os.path.splitext(path)[0].title()
+	return os.path.splitext(path)[0]
 
 
 class TraitsList(HasTraits):

@@ -27,9 +27,9 @@ class DbNames(Enum):
 
 class DefaultExtractors(Enum):
 	"""Default extractor filenames Enumeration."""
-	MEDLINE = 'medline.yml'
-	EMBASE = 'embase.yml'
-	SCOPUS = 'scopus.yml'
+	MEDLINE = 'MEDLINE.yml'
+	EMBASE = 'Embase.yml'
+	SCOPUS = 'Scopus.yml'
 
 
 class DbExtractor(overlapper.DbMatcher):
