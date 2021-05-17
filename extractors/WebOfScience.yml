@@ -1,0 +1,9 @@
+# Web of Science database extractor
+
+ExtractKeys.YEAR:
+  PY: '(\d+)' # col, regex; most citations have year in this col
+  EA: '(\d+)' # others have it in this col as "MON YYYY", eg "APR 2020"
+ExtractKeys.AUTHOR_KEY: AU # or AF for full first and middle names
+ExtractKeys.PMID: [PM, '(\d+)'] # col, regex 
+ExtractKeys.TITLE: TI # main title column
+ExtractKeys.JOURNAL: J9 # or SO for full journal names
