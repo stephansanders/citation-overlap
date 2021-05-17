@@ -278,15 +278,19 @@ class DbExtractor(overlapper.DbMatcher):
 		"""
 		if not extractorPath:
 			# identify a YAML extractor for the given database based on first
-			# part of the path filename
-			pathDbSplit = os.path.basename(os.path.splitext(path)[0]).split('_')
+			# part of the path filename, case-insensitive
+			pathDbSplit = os.path.splitext(os.path.basename(
+				path))[0].lower().split('_')
 			for extractor_dir in config.extractor_dirs:
-				extractorPaths = glob.glob(
-					str(extractor_dir / f'{pathDbSplit[0].lower()}.*'))
+				# get all files in the given extractor directory
+				extractorPaths = glob.glob(str(extractor_dir / '*'))
 				for extrPath in extractorPaths:
-					if os.path.splitext(extrPath.lower())[1] in (
+					# search for case-insensitive match between YAML filenames
+					# and citation files
+					extrBase, extrExt = os.path.splitext(os.path.basename(
+						extrPath).lower())
+					if pathDbSplit[0] == extrBase and extrExt in (
 							'.yml', '.yaml'):
-						# case-insensitive match for YAML extension
 						extractorPath = extrPath
 						break
 
