@@ -1,0 +1,8 @@
+# Cochrane Central Register of Controlled Trials (CENTRAL) database extractor
+
+ExtractKeys.YEAR: Year
+ExtractKeys.AUTHOR_KEY: Author(s)
+ExtractKeys.PMID: [PubMed ID, '(\d+)'] # col, regex 
+ExtractKeys.EMID: [Embase ID, '(\d+)', NoEMID]
+ExtractKeys.TITLE: Title
+ExtractKeys.JOURNAL: Source
