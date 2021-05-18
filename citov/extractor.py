@@ -310,11 +310,7 @@ class DbExtractor(overlapper.DbMatcher):
 			headerMainId = 'Embase_ID' if dbEnum is DbNames.SCOPUS else None
 			if df is None:
 				try:
-					if os.path.isdir(path):
-						paths = glob.glob(os.path.join(path, "*"))
-						df = utils.merge_csvs(paths)
-					else:
-						df = utils.read_csv(path)
+					df = utils.mergeCsvs(path)
 				except SyntaxError as e:
 					raise e
 			self.dbsParsed[dbName], df_out = self.processDatabase(

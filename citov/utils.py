@@ -1,5 +1,6 @@
 """Utility functions for Citation-Overlap."""
 
+import glob
 import logging
 import pathlib
 import string
@@ -126,26 +127,41 @@ def read_csv(path):
 		raise SyntaxError(f'Could not parse "{path} during import')
 
 
-def merge_csvs(in_paths, out_path=None):
+def mergeCsvs(inPaths, outPath=None):
 	"""Combine and export multiple CSV files to a single CSV file.
 
 	Args:
-		in_paths (list[Union[str, :class:`Path`]]): List of paths to CSV/TSV
-			files to import as data frames and concatenate.
-		out_path (Union[str, :obj:`pathlib.Path`]): Output path; defaults to
+		inPaths (Union[str, :class:`Path`, list[Union[str, :class:`Path`]]]):
+			CSV/TSV file path(s) to import as data frames and concatenate.
+			Can be a single directory, in which case the entire folder
+			contents will be concatenated.
+		outPath (Union[str, :obj:`pathlib.Path`]): Output path; defaults to
 			None to not save the merged data frame.
 
 	Returns:
 		:class:`pandas.DataFrame`: Merged data frame.
 
 	"""
-	if not in_paths:
+	if not inPaths:
 		return None
-	dfs = [read_csv(path) for path in in_paths]
-	df = pd.concat(dfs)
-	if out_path is not None:
-		_logger.info(f'Saving merged CSV/TSVs to "{out_path}"')
-		df.to_csv(out_path, sep=get_file_sep(out_path))
+	paths = inPaths
+	if not is_seq(paths):
+		# get directory contents if paths given as a single directory path
+		path = pathlib.Path(paths)
+		if path.is_dir():
+			paths = glob.glob(str(path / "*"))
+	if is_seq(paths):
+		# combine paths and fill NaNs in concatenated file with empty strings
+		dfs = [read_csv(path) for path in paths]
+		df = pd.concat(dfs).fillna('')
+	else:
+		# read single file
+		df = read_csv(paths)
+	
+	if outPath is not None:
+		# save to file if output path given
+		_logger.info(f'Saving merged CSV/TSVs to "{outPath}"')
+		df.to_csv(outPath, sep=get_file_sep(outPath))
 	return df
 
 
