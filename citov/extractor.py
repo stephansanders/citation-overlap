@@ -382,6 +382,38 @@ class DbExtractor(overlapper.DbMatcher):
 		return msgs
 
 
+def _combine_spreadsheets(paths, outputFileName=None):
+	"""Combine spreadsheet files into a single, merged file.
+	
+	Args:
+		paths (list[str]): List of paths to combine.
+		outputFileName (str): Path to output combined file; defaults to None
+			to use a location based on the first path in ``paths``.
+
+	Returns:
+		:class:`pandas.DataFrame`: The combined data frame.
+
+	"""
+	nPaths = len(paths)
+	if nPaths < 1:
+		# no paths to combine
+		return
+	
+	out_path = outputFileName
+	if not out_path:
+		# make default path
+		out_path = pathlib.Path(paths[0])
+		out_path = out_path.parent / \
+			f'{out_path.stem}_combined{out_path.suffix}'
+	
+	if nPaths == 1:
+		# extract single path if only one given
+		paths = paths[0]
+	
+	# merge files
+	return utils.mergeCsvs(paths, out_path)
+
+
 def parseArgs():
 	"""Parse arguments."""
 	parser = argparse.ArgumentParser(
@@ -403,7 +435,9 @@ def parseArgs():
 		help='Folder path(s) of additional extractors')
 	parser.add_argument(
 		'-c', '--combine', nargs="*",
-		help='CSV/TSV file path(s) to combine')
+		help=(
+			'CSV/TSV file path(s) to combine. Can be given as a single '
+			'folder, in which case its entire contents will be combined.'))
 	parser.add_argument(
 		'-v', '--verbose', action='store_true', help='Verbose logging')
 	args, args_unknown = parser.parse_known_args()
@@ -436,18 +470,16 @@ def parseArgs():
 		# add additional extractor directories
 		config.extractor_dirs.extend([pathlib.Path(p) for p in args.extractors])
 
-	if args.combine:
-		# combine files along rows
-		print(f'Combining citation lists and exiting: {args.combine}')
-		out_path = pathlib.Path(args.combine[0])
-		utils.merge_csvs(
-			args.combine,
-			out_path.parent / f'{out_path.stem}_combined{out_path.suffix}')
-		sys.exit()
-	
 	if args.out:
 		# parse output file path
 		outputFileName = args.out
+		_logger.info(f'Set output path: {outputFileName}')
+
+	if args.combine:
+		# combine files along rows
+		_logger.info(f'Combining citation lists and exiting: {args.combine}')
+		_combine_spreadsheets(args.combine, outputFileName)
+		sys.exit()
 	
 	# notify user of full args list, including unrecognized args
 	_logger.debug(f"All command-line arguments: {sys.argv}")
