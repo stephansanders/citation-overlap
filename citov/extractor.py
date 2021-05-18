@@ -453,18 +453,18 @@ def parseArgs():
 	if args.cit_lists:
 		# paths given without a parameter are auto-detected
 		paths['auto'] = args.cit_lists
-		print(
+		_logger.info(
 			f'Set citation lists for auto-detection by filename: '
 			f'{args.cit_lists}')
 	if args.medline:
 		paths[DefaultExtractors.MEDLINE] = args.medline
-		print(f'Set Medline citation lists: {args.medline}')
+		_logger.info(f'Set Medline citation lists: {args.medline}')
 	if args.embase:
 		paths[DefaultExtractors.EMBASE] = args.embase
-		print(f'Set Embase citation lists: {args.embase}')
+		_logger.info(f'Set Embase citation lists: {args.embase}')
 	if args.scopus:
 		paths[DefaultExtractors.SCOPUS] = args.scopus
-		print(f'Set Scopus citation lists: {args.scopus}')
+		_logger.info(f'Set Scopus citation lists: {args.scopus}')
 
 	if args.extractors:
 		# add additional extractor directories
