@@ -51,6 +51,21 @@ function include(filename) {
 }
 
 /**
+ * Show a basic alert dialog box with yes/no options.
+ * @param title Dialog box title.
+ * @papram prompt Dialog box main text.
+ * @return {bool} true if the user selected yes, false otherwise.
+ */
+function showAlert(title, prompt) {
+  var ui = SpreadsheetApp.getUi();
+  var out = ui.alert(title, prompt, ui.ButtonSet.YES_NO);
+  if (out == ui.Button.YES) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Set up empty sheets with database names.
  */
 function setupSheets() {
@@ -87,6 +102,12 @@ function getProcessedSheets() {
  * Clear processed sheets.
  */
 function clearSheets() {
+  if (!showAlert(
+    // confirm whether user wishes to remove these sheets
+    "Please confirm",
+    "Are you sure you want to remove all 'clean' and 'overlaps' sheets?")) {
+    return;
+  }
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var sheets = getProcessedSheets();
   var sheetsLen = sheets.length;
