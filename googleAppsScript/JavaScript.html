@@ -41,56 +41,70 @@ function setupHomepage() {
 
 // Show generic feedback when initiating an operation.
 function loadingFeedback(name) {
+  $('#' + name).prop("disabled", true);
   $('#' + name + '_feedback').text('Loading...');
   $('#' + name + '_spinner').show();
+}
+
+// Enable the given button.
+function enableBtn(name) {
+  $('#' + name).prop("disabled", false);
 }
 
 // handler for setting up sheets
 function onSetupSheetsSuccess(files) {
   $('#setup_sheets_spinner').hide();
   $('#setup_sheets_feedback').text('Default sheets for database citation list import set up.');
+  enableBtn("setup_sheets");
 }
 
 // handler for error when setting up sheets
 function onSetupSheetsFailure(err) {
   $('#setup_sheets_spinner').hide();
   $('#setup_sheets_feedback').text(err.message);
+  enableBtn("setup_sheets");
 }
 
 // handler for finding overlaps
 function onFindOverlapsSuccess(files) {
   $('#find_overlaps_spinner').hide();
   $('#find_overlaps_feedback').text('Found overlaps and inserted filtered database sheets.');
+  enableBtn("find_overlaps");
 }
 
 // handler for error when finding overlaps
 function onFindOverlapsFailure(err) {
   $('#find_overlaps_spinner').hide();
   $('#find_overlaps_feedback').text(err.message);
+  enableBtn("find_overlaps");
 }
 
 // handler for resizing processed sheets
 function onResizeSheetsSuccess(files) {
   $('#resize_sheets_spinner').hide();
   $('#resize_sheets_feedback').text('Resized filtered and overlaps sheets.');
+  enableBtn("resize_sheets");
 }
 
 // handler for error when resizing columns
 function onResizeSheetsFailure(err) {
   $('#resize_sheets_spinner').hide();
   $('#resize_sheets_feedback').text(err.message);
+  enableBtn("resize_sheets");
 }
 
 // handler for removing processed sheets
 function onRemoveSheetsSuccess(files) {
   $('#remove_sheets_spinner').hide();
   $('#remove_sheets_feedback').text('Removed filtered and overlaps sheets; ready to run again.');
+  enableBtn("remove_sheets");
 }
 
 // handler for error when removing processed sheets
 function onRemoveSheetsFailure(err) {
   $('#remove_sheets_spinner').hide();
   $('#remove_sheets_feedback').text(err.message);
+  enableBtn("remove_sheets");
 }
 
 setupHomepage();
