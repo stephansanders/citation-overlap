@@ -16,6 +16,9 @@ SHEET_OVERLAPS = 'overlaps';
 // maximum column width
 MAX_COL_WIDTH = 300;
 
+// user properties stored across sessions
+var userProps = PropertiesService.getUserProperties();
+
 /**
  * Add a custom menu when the user opens the spreadsheet.
  */
@@ -66,10 +69,36 @@ function showAlert(title, prompt) {
 }
 
 /**
+ * Set the current spreadsheet to a user property.
+ * @param url URL of spreadsheet as a string.
+ */
+function setCurrentSpreadsheet(url) {
+  // setting the active spreadsheet does not appear to work beyond this fn
+  //var activeSpreadsheet = SpreadsheetApp.openByUrl(url);
+  //SpreadsheetApp.setActiveSpreadsheet(activeSpreadsheet);
+  userProps.setProperty("spreadsheetURL", url);
+  console.log("active set " + userProps.getProperty("spreadsheetURL"));
+}
+
+/**
+ * Get the current spreadsheeet.
+ * @return {Spreadsheet} The active spreadsheet if available; if not, the
+ * spreadsheet set in the user property.
+ */
+function getCurrentSpreadsheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  if (spreadsheet == null) {
+    spreadsheet = SpreadsheetApp.openByUrl(userProps.getProperty("spreadsheetURL"));
+  }
+  return spreadsheet;
+}
+
+/**
  * Set up empty sheets with database names.
  */
 function setupSheets() {
-  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var spreadsheet = getCurrentSpreadsheet();
+  console.log("active " + spreadsheet)
   var namesLen = DB_NAMES.length;
   for (var i = 0; i < namesLen; i++) {
     spreadsheet.insertSheet(DB_NAMES[i], i);
@@ -83,7 +112,7 @@ function setupSheets() {
  * @return Array of processed sheets.
  */
 function getProcessedSheets() {
-  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var spreadsheet = getCurrentSpreadsheet();
   var sheets = spreadsheet.getSheets();
   var sheetsLen = sheets.length;
   var sheetsProc = [];
@@ -108,7 +137,7 @@ function clearSheets() {
     "Are you sure you want to remove all 'clean' and 'overlaps' sheets?")) {
     return;
   }
-  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var spreadsheet = getCurrentSpreadsheet();
   var sheets = getProcessedSheets();
   var sheetsLen = sheets.length;
   for (var i = 0; i < sheetsLen; i++) {
@@ -125,7 +154,7 @@ function clearSheets() {
  * database and a separate sheet for the overlaps.
  */
 function findOverlaps() {
-  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var spreadsheet = getCurrentSpreadsheet();
   var sheets = spreadsheet.getSheets();
   var sheetsLen = sheets.length;
   var namesLen = DB_NAMES.length;
