@@ -7,22 +7,26 @@
   <body>
     <?!= include('StyleSheet'); ?>
 
-    <div style="display:flex;">
+    <div id="main" style="display:flex;">
       <!-- Sidebar controls -->
-      <div style="width: 300px;">
+      <div id="sidebar" style="overflow: auto;">
         <?!= include('Sidebar'); ?>
       </div>
 
       <!-- Google Sheets spreadsheet -->
       <div style="flex-grow: 1;">
-        <iframe id="iframe_spreadsheet" src="" width="100%" height="100%"></iframe>
+        <iframe id="iframe_spreadsheet" src="" width="99%" height="100%"></iframe>
       </div>
     </div>
 
     <?!= include('JavaScript'); ?>
     <script>
       // show the URL bar to input a spreadsheet
-      $('#url_bar').show();
+      $("#url_bar").show();
+
+      // resize sidebar based on window size, including resizing
+      $(document).ready(resizeSidebar);
+      $(window).on("resize", resizeSidebar)
     </script>
   </body>
 </html>

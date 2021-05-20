@@ -148,6 +148,12 @@ function loadURL() {
         .setCurrentSpreadsheet(x);
 }
 
+// Resize the sidebar based on window size.
+function resizeSidebar() {
+  $("#sidebar").css("height", $(window).height() - 10);
+  $("#sidebar").css("width", $(window).width() * 0.33 - 10);
+}
+
 setupHomepage();
 
 </script>
