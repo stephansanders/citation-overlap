@@ -125,6 +125,29 @@ function onRemoveSheetsFailure(err) {
   enableBtn("remove_sheets");
 }
 
+// handler for removing processed sheets
+function onLoadSpreadsheetSuccess(files) {
+  $('#load_spreadsheet_spinner').hide();
+  $('#load_spreadsheet_feedback').text('Loaded Google Spreadsheet.');
+  enableBtn("url_btn");
+}
+
+// handler for error when removing processed sheets
+function onLoadSpreadsheetFailure(err) {
+  $('#load_spreadsheet_spinner').hide();
+  $('#load_spreadsheet_feedback').text(err.message);
+  enableBtn("url_btn");
+}
+
+// Load a URL from an input field and set the current spreadsheet to the URL.
+function loadURL() {
+  var x = document.getElementById("url_input").value;
+  document.getElementById("iframe_spreadsheet").src = x;
+  google.script.run.withSuccessHandler(onLoadSpreadsheetSuccess)
+        .withFailureHandler(onLoadSpreadsheetFailure)
+        .setCurrentSpreadsheet(x);
+}
+
 setupHomepage();
 
 </script>
