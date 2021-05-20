@@ -36,8 +36,11 @@ function onOpen(e) {
   menu.addToUi();
 }
 
+/**
+ * Show a sidebar as an Add-on attached to a spreadsheet.
+ */
 function showSidebar() {
-  var html = HtmlService.createTemplateFromFile("Sidebar").evaluate();
+  var html = HtmlService.createTemplateFromFile("sidewrap").evaluate();
   html.setTitle("Citation-Overlap");
   SpreadsheetApp.getUi().showSidebar(html);
 }
