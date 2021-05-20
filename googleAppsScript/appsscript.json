@@ -28,5 +28,9 @@
   ],
   "urlFetchWhitelist": [
     "https://yodavid.pythonanywhere.com/"
-  ]
+  ],
+  "webapp": {
+    "executeAs": "USER_ACCESSING",
+    "access": "ANYONE"
+  }
 }

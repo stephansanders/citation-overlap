@@ -18,6 +18,14 @@
       
       <p class="instructions"><a href="https://github.com/stephansanders/citation-overlap/releases/download/v0.9.1/AutismSequencingCitations_2020-07-08.zip" class="to_faq" target="_blank" rel="noopener noreferrer">Download sample files to import.</a></p>
       
+    <form id="url_bar" class="instructions instructions_hidden">
+  Enter the URL of a Google Sheets to edit:<br/><input id="url_input" type="text" name="url"> <input type="button" id="url_btn" class="blue" onclick="loadURL()" value="Load"></input>
+</form>
+      
+      <div id="files_output">
+      <img id="load_spreadsheet_spinner" src="http://textflex.com/progator/app/spinner.gif" style="display:none;">
+      <p id="load_spreadsheet_feedback" class="feedback"></p>
+      </div>
       
       <ol class="instructions">
       

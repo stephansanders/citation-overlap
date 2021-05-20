@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<!-- Citation-Overlap web app controls -->
+<html>
+  <head>
+    <base target="_top">
+  </head>
+  <body>
+    <?!= include('StyleSheet'); ?>
+
+    <div style="display:flex;">
+      <!-- Sidebar controls -->
+      <div style="width: 300px;">
+        <?!= include('Sidebar'); ?>
+      </div>
+
+      <!-- Google Sheets spreadsheet -->
+      <div style="flex-grow: 1;">
+        <iframe id="iframe_spreadsheet" src="" width="100%" height="100%"></iframe>
+      </div>
+    </div>
+
+    <?!= include('JavaScript'); ?>
+    <script>
+      // show the URL bar to input a spreadsheet
+      $('#url_bar').show();
+    </script>
+  </body>
+</html>

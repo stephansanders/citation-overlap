@@ -20,6 +20,17 @@ MAX_COL_WIDTH = 300;
 var userProps = PropertiesService.getUserProperties();
 
 /**
+ * Create a template from the index file to display as a web app.
+ * 
+ * @param {string} e optional event
+ * @return {HtmlTemplate} the HTMLTemplate object
+ */
+function doGet(e) {
+  var template = HtmlService.createTemplateFromFile('index');
+  return template.evaluate().setSandboxMode(HtmlService.SandboxMode.IFRAME);
+}
+
+/**
  * Add a custom menu when the user opens the spreadsheet.
  */
 function onOpen(e) {
