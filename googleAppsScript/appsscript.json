@@ -1,6 +1,19 @@
 {
   "timeZone": "Asia/Hong_Kong",
+  "dependencies": {},
+  "webapp": {
+    "executeAs": "USER_ACCESSING",
+    "access": "ANYONE"
+  },
   "exceptionLogging": "STACKDRIVER",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.container.ui"
+  ],
+  "urlFetchWhitelist": [
+    "https://yodavid.pythonanywhere.com/"
+  ],
   "runtimeVersion": "V8",
   "addOns": {
     "common": {
@@ -15,22 +28,10 @@
     "sheets": {
       "macros": [
         {
-          "functionName": "findOverlaps",
-          "menuName": "Find overlaps"
+          "menuName": "Find overlaps",
+          "functionName": "findOverlaps"
         }
       ]
     }
-  },
-  "oauthScopes": [
-    "https://www.googleapis.com/auth/script.external_request",
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/script.container.ui"
-  ],
-  "urlFetchWhitelist": [
-    "https://yodavid.pythonanywhere.com/"
-  ],
-  "webapp": {
-    "executeAs": "USER_ACCESSING",
-    "access": "ANYONE"
   }
 }
