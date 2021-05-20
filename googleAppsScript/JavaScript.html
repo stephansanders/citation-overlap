@@ -30,12 +30,30 @@ function setupHomepage() {
         .resizeColumns();
   });
   
-  // listener to reset by removing processed sheets
+  // listener to reset by removing processed sheets with a dialog
   $('#remove_sheets').click(function(event) {
-    loadingFeedback("remove_sheets");
-    google.script.run.withSuccessHandler(onRemoveSheetsSuccess)
-        .withFailureHandler(onRemoveSheetsFailure)
-        .clearSheets();
+    $("#dialog").text("Are you sure you want to remove all 'clean' and 'overlaps' sheets?");
+    $("#dialog").show();
+    $("#dialog").dialog({
+      title: "Please confirm",
+      buttons: [{
+        text: "OK",
+        click: function() {
+          // remove the sheet
+          $(this).dialog("close");
+          loadingFeedback("remove_sheets");
+          google.script.run.withSuccessHandler(onRemoveSheetsSuccess)
+              .withFailureHandler(onRemoveSheetsFailure)
+              .clearSheets();
+        }
+      }, {
+        // cancel removal
+        text: "Cancel",
+        click: function() {
+          $(this).dialog("close");
+        }
+      }]
+    });
   });
 }
 
