@@ -55,11 +55,23 @@ function setupHomepage() {
       }]
     });
   });
+
 }
 
-// Show generic feedback when initiating an operation.
-function loadingFeedback(name) {
-  $('#' + name).prop("disabled", true);
+/**
+ * Show generic feedback when initiating an operation.
+ * 
+ * @param name Base name; associated feedback elements IDs are assumed
+ * to start with this name.
+ * @param btn Button name; defaults to null to use ``name``.
+ */
+function loadingFeedback(name, btn=null) {
+  if (btn == null) {
+    btn = name;
+  }
+  if (btn != false) {
+    $('#' + btn).prop("disabled", true);
+  }
   $('#' + name + '_feedback').text('Loading...');
   $('#' + name + '_spinner').show();
 }
@@ -139,10 +151,13 @@ function onLoadSpreadsheetFailure(err) {
   enableBtn("url_btn");
 }
 
-// Load a URL from an input field and set the current spreadsheet to the URL.
+/**
+ * Load a URL from an input field and set the current spreadsheet to the URL.
+ */
 function loadURL() {
-  var x = document.getElementById("url_input").value;
-  document.getElementById("iframe_spreadsheet").src = x;
+  loadingFeedback("load_spreadsheet", "url_btn");
+  var x = $("#url_input").val();
+  $("#iframe_spreadsheet").prop("src", x);
   google.script.run.withSuccessHandler(onLoadSpreadsheetSuccess)
         .withFailureHandler(onLoadSpreadsheetFailure)
         .setCurrentSpreadsheet(x);
@@ -153,6 +168,25 @@ function resizeSidebar() {
   $("#sidebar").css("height", $(window).height() - 10);
   $("#sidebar").css("width", $(window).width() * 0.33 - 10);
 }
+
+// listener to create a new spreadsheet
+$("#create_btn").click(function(event) {
+  loadingFeedback("load_spreadsheet", "create_btn");
+  google.script.run.withSuccessHandler(function (url) {
+    $('#load_spreadsheet_spinner').hide();
+    $('#load_spreadsheet_feedback').text('Create Google Spreadsheet.');
+    $("#url_input").val(url);
+    loadURL();
+    enableBtn("create_btn");
+  }).withFailureHandler(function onLoadSpreadsheetFailure(err) {
+    $('#load_spreadsheet_spinner').hide();
+    $('#load_spreadsheet_feedback').text(err.message);
+    enableBtn("create_btn");
+  }).createSpreadsheet();
+});
+
+// set listener for URL load button
+$("#url_btn").click(loadURL);
 
 setupHomepage();
 

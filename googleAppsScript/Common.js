@@ -68,6 +68,17 @@ function include(filename) {
 }
 
 /**
+ * Create a new spreadsheet.
+ * 
+ * @return {str} The spreadsheet URL.
+ */
+function createSpreadsheet() {
+  var spreadsheet = SpreadsheetApp.create("Citations");
+  setCurrentSpreadsheet(spreadsheet.getUrl());
+  return spreadsheet.getUrl();
+}
+
+/**
  * Set the current spreadsheet to a user property.
  * @param url URL of spreadsheet as a string.
  */
