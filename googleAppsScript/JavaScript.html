@@ -11,15 +11,19 @@ function setupHomepage() {
     loadingFeedback("setup_sheets");
     google.script.run.withSuccessHandler(onSetupSheetsSuccess)
         .withFailureHandler(onSetupSheetsFailure)
-        .setupSheets();
+        .setupSheets($("#setup_sheets_input").val());
   });
   
   // listener to find overlaps
   $('#find_overlaps').click(function(event) {
     loadingFeedback("find_overlaps");
+    // pass all but first option as eligible databases/sheet names
+    var dbNames = $("#setup_sheets_menu option").map(function() {
+      return this.value;
+    }).get();
     google.script.run.withSuccessHandler(onFindOverlapsSuccess)
         .withFailureHandler(onFindOverlapsFailure)
-        .findOverlaps();
+        .findOverlaps(dbNames.slice(1, dbNames.length));
   });
   
   // listener to auto-fit columns
@@ -191,6 +195,16 @@ $("#create_btn").click(function(event) {
 
 // set listener for URL load button
 $("#url_btn").click(loadURL);
+
+// append selected database from dropdown box
+$("#setup_sheets_menu").on("change", function() {
+    var input = $("#setup_sheets_input").val();
+    if (input.length > 0) {
+      input += ", ";
+    }
+    $("#setup_sheets_input").val(input + this.value);
+    $("#setup_sheets_input").focus();
+})
 
 setupHomepage();
 
