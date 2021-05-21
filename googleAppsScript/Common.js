@@ -1,6 +1,9 @@
 /**
  * Citation Overlap Google Apps Script Add-On
  * Stephan Sanders Lab, 2020, 2021
+ * 
+ * SCRIPT PROPERTIES
+ * - SERVER_URL: set to server hosting Citation-Overlap flask app
  */
 
 // database names
