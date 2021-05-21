@@ -6,13 +6,6 @@
  * - SERVER_URL: set to server hosting Citation-Overlap flask app
  */
 
-// database names
-DB_NAMES = [
-  'medline',
-  'embase',
-  'scopus'
-];
-
 // name of sheet with database overlaps
 SHEET_OVERLAPS = 'overlaps';
 
@@ -108,15 +101,18 @@ function getCurrentSpreadsheet() {
 
 /**
  * Set up empty sheets with database names.
+ * 
+ * @param {str} names Names given as a comma-delimited string; all spaces
+ * will be removed.
  */
-function setupSheets() {
+function setupSheets(names) {
   var spreadsheet = getCurrentSpreadsheet();
-  console.log("active " + spreadsheet)
-  var namesLen = DB_NAMES.length;
+  var dbNames = names.replace(/ /g, "").split(",");
+  var namesLen = dbNames.length;
   for (var i = 0; i < namesLen; i++) {
-    spreadsheet.insertSheet(DB_NAMES[i], i);
+    spreadsheet.insertSheet(dbNames[i], i);
   }
-  spreadsheet.setActiveSheet(spreadsheet.getSheetByName(DB_NAMES[0]));
+  spreadsheet.setActiveSheet(spreadsheet.getSheetByName(dbNames[0]));
 }
 
 /**
@@ -159,12 +155,15 @@ function clearSheets() {
  * Wrap up database sheets into JSON payload for server. Accept response
  * as JSON and parse into separate sheets, with one sheet for each
  * database and a separate sheet for the overlaps.
+ * 
+ * @param dbNames {array} List of valid database names; only sheets
+ * matching these names will be processed.
  */
-function findOverlaps() {
+function findOverlaps(dbNames) {
   var spreadsheet = getCurrentSpreadsheet();
   var sheets = spreadsheet.getSheets();
   var sheetsLen = sheets.length;
-  var namesLen = DB_NAMES.length;
+  var namesLen = dbNames.length;
   
   // convert database sheets to CSV strings
   var data = {};
@@ -172,7 +171,8 @@ function findOverlaps() {
     var sheet = sheets[i];
     var sheetName = sheet.getName();
     for (var j = 0; j < namesLen; j++) {
-      if (sheetName.startsWith(DB_NAMES[j])) {
+      if (sheetName.toLowerCase().startsWith(dbNames[j].toLowerCase())) {
+        // only process sheets whose name matches a database name
         csv = convertRangeToCsvStr(sheet);
         Logger.log("sheet " + sheetName)
         data[sheetName] = csv;
@@ -188,6 +188,7 @@ function findOverlaps() {
     "payload": JSON.stringify(data)
   };
   //Logger.log("options: " + options["payload"]);
+  
   var response = UrlFetchApp.fetch(
     PropertiesService.getScriptProperties().getProperty('SERVER_URL'), options);
   
@@ -197,8 +198,8 @@ function findOverlaps() {
   var json = response.getContentText()
   //Logger.log("response: " + json);
   var respData = JSON.parse(json);
-  var respDataLen = respData.length;
   var namesOv = Object.keys(data);
+  var nData = namesOv.length;
   namesOv.push(SHEET_OVERLAPS);
   var namesOvLen = namesOv.length;
   for (var i = 0; i < namesOvLen; i++) {
@@ -206,7 +207,7 @@ function findOverlaps() {
     var val = respData[key];
     Logger.log("key: " + key + ", val: " + val.slice(-200));
     var name = key === SHEET_OVERLAPS ? key : key + "_clean"
-    parseJsonToSheet(spreadsheet, name, val, namesLen + i);
+    parseJsonToSheet(spreadsheet, name, val, nData + i);
   }
 }
 
