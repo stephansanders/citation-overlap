@@ -36,6 +36,10 @@ function setupHomepage() {
     $("#dialog").show();
     $("#dialog").dialog({
       title: "Please confirm",
+      // hide close buttons
+      open: function(event, ui) {
+        $(".ui-dialog-titlebar-close").hide();
+      },
       buttons: [{
         text: "OK",
         click: function() {
