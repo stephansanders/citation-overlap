@@ -21,8 +21,10 @@
 
     <?!= include('JavaScript'); ?>
     <script>
-      // show the URL bar to input a spreadsheet
+      // show the URL bar to input a spreadsheet and load last spreadsheet
+      // if available
       $("#spreadsheet_load_table").show();
+      loadLastSpreadsheet();
 
       // resize sidebar based on window size, including resizing
       $(document).ready(resizeSidebar);
