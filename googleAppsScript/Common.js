@@ -241,7 +241,13 @@ function parseJsonToSheet(ss, name, jsonData, sheeti) {
   return sheet;
 }
 
-function parseCsvStrToSheet(ss, name, csvStr) {
+function parseCsvStrToSheet(name, csvStr, ss=null) {
+  if (ss == null) {
+    // default to get the current spreadsheet
+    ss = getCurrentSpreadsheet();
+  }
+
+  // parse the CSV and enter into a sheet
   var data = Utilities.parseCsv(csvStr);
   var sheet = ss.insertSheet(name);
   sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
