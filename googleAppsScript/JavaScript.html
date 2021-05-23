@@ -81,6 +81,7 @@ function loadingFeedback(name, btn=null) {
     $('#' + btn).prop("disabled", true);
   }
   $('#' + name + '_feedback').text('Loading...');
+  $('#' + name + '_feedback').show();
   $('#' + name + '_spinner').show();
 }
 
@@ -131,14 +132,18 @@ function onRemoveSheetsFailure(err) {
   enableBtn("remove_sheets");
 }
 
-// handler for removing processed sheets
-function onLoadSpreadsheetSuccess(files) {
+/**
+ * Handle successfully loading a spreadsheet.
+ */
+function onLoadSpreadsheetSuccess() {
   $('#load_spreadsheet_spinner').hide();
-  $('#load_spreadsheet_feedback').text('Loaded Google Spreadsheet.');
+  $('#load_spreadsheet_feedback').text('Loaded Google spreadsheet.');
   enableBtn("url_btn");
 }
 
-// handler for error when removing processed sheets
+/**
+ * Handle error when loading a spreadsheet.
+ */
 function onLoadSpreadsheetFailure(err) {
   $('#load_spreadsheet_spinner').hide();
   $('#load_spreadsheet_feedback').text(err.message);
@@ -148,7 +153,34 @@ function onLoadSpreadsheetFailure(err) {
 /**
  * Load a URL from an input field and set the current spreadsheet to the URL.
  */
-function loadURL() {
+function loadLastSpreadsheet() {
+  loadingFeedback("load_spreadsheet", "url_btn");
+  google.script.run.withSuccessHandler(function (url) {
+    console.log("url" + url);
+    if (url == null) {
+      $('#load_spreadsheet_feedback').hide();
+    } else {
+      loadUrl(url);
+    }
+    onLoadSpreadsheetSuccess();
+  }).withFailureHandler(onLoadSpreadsheetFailure)
+    .getPropSpreadsheetURL();
+}
+
+/**
+ * Load a URL into the URL bar and iframe.
+ * 
+ * @param {str} url URL address to load.
+ */
+function loadUrl(url) {
+  $("#url_input").val(url);
+  $("#iframe_spreadsheet").prop("src", url);
+}
+
+/**
+ * Load a URL from an input field and set the current spreadsheet to the URL.
+ */
+function loadUrlFromInput() {
   loadingFeedback("load_spreadsheet", "url_btn");
   var x = $("#url_input").val();
   $("#iframe_spreadsheet").prop("src", x);
@@ -167,10 +199,9 @@ function resizeSidebar() {
 $("#create_btn").click(function(event) {
   loadingFeedback("load_spreadsheet", "create_btn");
   google.script.run.withSuccessHandler(function (url) {
+    loadUrl(url);
     $('#load_spreadsheet_spinner').hide();
-    $('#load_spreadsheet_feedback').text('Create Google Spreadsheet.');
-    $("#url_input").val(url);
-    loadURL();
+    $('#load_spreadsheet_feedback').text("Created a Google spreadsheet.");
     enableBtn("create_btn");
   }).withFailureHandler(function onLoadSpreadsheetFailure(err) {
     $('#load_spreadsheet_spinner').hide();
@@ -180,7 +211,7 @@ $("#create_btn").click(function(event) {
 });
 
 // set listener for URL load button
-$("#url_btn").click(loadURL);
+$("#url_btn").click(loadUrlFromInput);
 
 // append selected database from dropdown box
 $("#setup_sheets_menu").on("change", function() {

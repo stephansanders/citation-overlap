@@ -22,6 +22,10 @@ var userProps = PropertiesService.getUserProperties();
  * @return {HtmlTemplate} the HTMLTemplate object
  */
 function doGet(e) {
+  // TESTING: test initial launch without properties
+  // userProps.deleteAllProperties();
+
+  // set up page
   var template = HtmlService.createTemplateFromFile('index');
   return template.evaluate().setSandboxMode(HtmlService.SandboxMode.IFRAME);
 }
@@ -75,6 +79,15 @@ function createSpreadsheet() {
 }
 
 /**
+ * Get the spreadsheet URL user property.
+ * 
+ * @return {str} The saved spreadsheet URL user property.
+ */
+function getPropSpreadsheetURL() {
+  return userProps.getProperty("spreadsheetURL");
+}
+
+/**
  * Set the current spreadsheet to a user property.
  * @param url URL of spreadsheet as a string.
  */
@@ -94,7 +107,7 @@ function setCurrentSpreadsheet(url) {
 function getCurrentSpreadsheet() {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   if (spreadsheet == null) {
-    spreadsheet = SpreadsheetApp.openByUrl(userProps.getProperty("spreadsheetURL"));
+    spreadsheet = SpreadsheetApp.openByUrl(getPropSpreadsheetURL());
   }
   return spreadsheet;
 }
