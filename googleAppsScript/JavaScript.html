@@ -89,20 +89,6 @@ function enableBtn(name) {
   $('#' + name).prop("disabled", false);
 }
 
-// handler for setting up sheets
-function onSetupSheetsSuccess(files) {
-  $('#setup_sheets_spinner').hide();
-  $('#setup_sheets_feedback').text('Default sheets for database citation list import set up.');
-  enableBtn("setup_sheets");
-}
-
-// handler for error when setting up sheets
-function onSetupSheetsFailure(err) {
-  $('#setup_sheets_spinner').hide();
-  $('#setup_sheets_feedback').text(err.message);
-  enableBtn("setup_sheets");
-}
-
 // handler for finding overlaps
 function onFindOverlapsSuccess(files) {
   $('#find_overlaps_spinner').hide();
@@ -198,13 +184,37 @@ $("#url_btn").click(loadURL);
 
 // append selected database from dropdown box
 $("#setup_sheets_menu").on("change", function() {
-    var input = $("#setup_sheets_input").val();
-    if (input.length > 0) {
-      input += ", ";
-    }
-    $("#setup_sheets_input").val(input + this.value);
-    $("#setup_sheets_input").focus();
+  $('#file_input').prop("disabled", this.value === "");
 })
+
+// listener for file input button
+$('#file_input').on('change', function () {
+    loadingFeedback("setup_sheets");
+
+    // get file
+    var file = $('#file_input').prop('files')[0];
+    var fileReader = new FileReader();
+
+    // read the file
+    fileReader.onload = function () {
+      // handler for completing the file read, loading the data
+      // into a new sheet named by the selected database
+      var data = fileReader.result;
+      var sheetName = $("#setup_sheets_menu").val();
+      google.script.run.withSuccessHandler(function (event) {
+        $('#setup_sheets_spinner').hide();
+        $('#setup_sheets_feedback').text(
+          "Imported '" + file.name + "' into sheet '"
+            + sheetName + "'");
+        enableBtn("setup_sheets");
+      }).withFailureHandler(function (err) {
+        $('#setup_sheets_spinner').hide();
+        $('#setup_sheets_feedback').text(err.message);
+        enableBtn("setup_sheets");
+      }).parseCsvStrToSheet(sheetName, data);
+    };
+    fileReader.readAsText(file);
+});
 
 setupHomepage();
 

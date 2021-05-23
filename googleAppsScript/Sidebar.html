@@ -21,7 +21,7 @@
       <!-- URL entry -->
       <div id="spreadsheet_load_table" class="instructions instructions_hidden" style="display: table;">
         <div class="tr">
-          <div class="td">Create a Google Spreadsheet or enter a URL to load: </div>
+          <div class="td">Create a Google Spreadsheet or enter its URL: </div>
           <div class="td"><button id="create_btn" class="blue">Create</button></div>
         </div>
         <div class="tr" style="width: 80%;">
@@ -37,36 +37,30 @@
       
       <ol class="instructions">
       
-      <!-- Set up sheets -->
-      <li>Add blank sheets for each database.</li>
-      <p class="instructions">Each database's citation list needs a separate sheet named for the database. We will add a sheet for each of the databases in the box below. Select databases from the dropdown to add more sheets, or remove unneeded sheets from the list. You can always add new sheets with these names later, too.</p>
+      
+      <!-- Instuctions on importing citation files -->
+      <li>Import your citation lists</li>
+      <p class="instructions">Select the citation list's database source and upload it. Each list will be entered into a separate sheet named by the database.</p>
 
       <div class="block">
-      <select name="extractors" id="setup_sheets_menu">
-        <option value="" selected>-- Select Database Sources --</option>
-        <option value="MEDLINE">MEDLINE</option>
-        <option value="Embase">Embase</option>
-        <option value="Scopus">Scopus</option>
-        <option value="WebOfScience">WebOfScience</option>
-        <option value="CENTRAL">CENTRAL</option>
-      </select>
-
-      <input id="setup_sheets_input" type="text" name="url" style=" width: 100%;" value="MEDLINE, Embase, Scopus">
+        <select name="extractors" id="setup_sheets_menu">
+          <option value="" selected>-- Select Database Sources --</option>
+          <option value="MEDLINE">MEDLINE</option>
+          <option value="Embase">Embase</option>
+          <option value="Scopus">Scopus</option>
+          <option value="WebOfScience">WebOfScience</option>
+          <option value="CENTRAL">CENTRAL</option>
+        </select>
       </div>
 
       <div class="block">
-      <button class="blue" id="setup_sheets">Set up sheets</button>
+        <input id="file_input" type="file" disabled/>
       </div>
       
       <div id="files_output">
       <img id="setup_sheets_spinner" src="http://textflex.com/progator/app/spinner.gif" style="display:none;">
       <p id="setup_sheets_feedback" class="feedback"></p>
       </div>
-      
-      
-      <!-- Instuctions on importing citation files -->
-      <li>Import your citation lists</li>
-      <p class="instructions">Go to the "File" menu and select "Import". Select your first citation file saved from the databases. Choose the options to "Replace current sheet" and leave the rest of the options with their defaults. Repeat for the rest of your citation lists.</p>
       
       
       <!-- Find citation overlaps -->
