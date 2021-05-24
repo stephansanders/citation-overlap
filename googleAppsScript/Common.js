@@ -276,8 +276,9 @@ function parseCsvStrToSheet(name, csvStr, ss=null) {
     // use the active sheet if empty and rename it
     sheet.setName(name);
   } else {
-    // create a new sheet
-    sheet = ss.insertSheet(name);
+    // create a new sheet and insert at end of sheets
+    sheet = ss.insertSheet(name, ss.getNumSheets());
+  }
   }
   sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
 }
