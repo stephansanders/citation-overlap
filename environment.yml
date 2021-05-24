@@ -8,3 +8,4 @@ dependencies:
   - jellyfish
   - pandas
   - pyyaml
+  - appdirs

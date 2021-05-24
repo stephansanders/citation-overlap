@@ -19,6 +19,7 @@ config = {
 		"jellyfish",
 		"pandas",
 		"pyyaml",
+		"appdirs",
 	],
 }
 
