@@ -12,6 +12,9 @@ SHEET_OVERLAPS = 'overlaps';
 // maximum column width
 MAX_COL_WIDTH = 300;
 
+// Google Sheets max characters per cell
+MAX_CHARS_PER_CELL = 50000;
+
 // user properties stored across sessions
 var userProps = PropertiesService.getUserProperties();
 
@@ -279,6 +282,17 @@ function parseCsvStrToSheet(name, csvStr, ss=null) {
     // create a new sheet and insert at end of sheets
     sheet = ss.insertSheet(name, ss.getNumSheets());
   }
+  
+  // truncate to max char per cell limit and insert into sheet
+  var dataLen = data.length;
+  for (var row = 0; row < dataLen; row++) { // rows
+    var dataRowLen = data[row].length;
+    for (var col = 0; col < dataRowLen; col++) { // columns
+      cell = data[row][col];
+      if (cell.length > MAX_CHARS_PER_CELL) {
+        data[row][col] = cell.substring(0, MAX_CHARS_PER_CELL);
+      }
+    }
   }
   sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
 }
