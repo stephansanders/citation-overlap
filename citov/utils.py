@@ -88,9 +88,7 @@ def load_yaml(path, strToClass=None):
 def get_file_sep(path):
 	"""Get separator for the given file extension.
 	
-	
-	
-	Args:p
+	Args:
 		path (Union[str, :class:`Path`]): File path from which the separator
 			will be determined.
 
@@ -106,7 +104,9 @@ def read_csv(path):
 	"""Read a CSV or TSV file.
 	
 	Args:
-		path (Union[str, :class:`Path`]): Path to read.
+		path (Union[str, :class:`Path`]): Path to read. Delimiter is assumed
+			to be either "," or "\t", determined from this path's extension.
+			If the read fails, the other delimiter will be checked.
 
 	Returns:
 		:class:`pandas.DataFrame`: File imported to a data frame.
@@ -116,11 +116,17 @@ def read_csv(path):
 
 	"""
 	try:
-		# identify separator based on extension since auto-detection
-		# does not appear to work reliably for TSV files
-		df = pd.read_csv(
-			path, index_col=False, dtype=str, na_filter=False,
-			sep=get_file_sep(path))
+		sep = get_file_sep(path)
+		try:
+			# identify separator based on extension since auto-detection
+			# does not appear to work reliably for TSV files
+			df = pd.read_csv(
+				path, index_col=False, dtype=str, na_filter=False, sep=sep)
+		except ParserError:
+			# fall back to opposite common delimiter
+			sep = ',' if sep == '\t' else '\t'
+			df = pd.read_csv(
+				path, index_col=False, dtype=str, na_filter=False, sep=sep)
 		return df
 	except ParserError as e:
 		_logger.exception(e)
