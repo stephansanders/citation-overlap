@@ -165,9 +165,11 @@ class CiteOverlapHandler(Handler):
 		Args:
 			info (UIInfo): TraitsUI UI info.
 
-		Returns:
-
 		"""
+		if not info.object.renameSheetName:
+			# skip name resets
+			return
+		
 		# find all tabbed panes, which contain different numbers of "other" tabs
 		tab_widgets = info.ui.control.findChildren(QtWidgets.QTabWidget)
 		for tab_widget in tab_widgets:
@@ -179,6 +181,10 @@ class CiteOverlapHandler(Handler):
 				info.object.renameSheetName if tabi < tabCount - 1
 				else self.TAB_OVERLAPS)
 			tab_widget.setTabText(tabi, name)
+		
+		# reset name to allow other dropdowns set to the same extractor name
+		# as the last chosen extractor to trigger a name change
+		info.object.renameSheetName = ''
 
 
 class CiteSheet(HasTraits):
