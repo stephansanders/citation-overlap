@@ -258,11 +258,11 @@ function parseJsonToSheet(ss, name, jsonData, sheeti) {
 }
 
 /**
- * Parse CSV file given as a string into a new sheet.
+ * Parse a CSV/TSV file given as a string into a new sheet.
  * 
  * @param {str} name Name of new sheet to enter. If the currently active
  * sheet is empty, this sheet will be renamed and used instead.
- * @param {str} csvStr CSV file contents given as a string.
+ * @param {str} csvStr CSV or TSV file contents given as a string.
  * @param {Spreadsheet} Spreadsheet instance; defaults to null to get
  * the current spreadsheet.
  */
@@ -272,8 +272,14 @@ function parseCsvStrToSheet(name, csvStr, ss=null) {
     ss = getCurrentSpreadsheet();
   }
 
-  // parse the CSV and enter into a sheet
-  var data = Utilities.parseCsv(csvStr);
+  try {
+    // parse the CSV and enter into a sheet
+    var data = Utilities.parseCsv(csvStr);
+  } catch(err) {
+    // fall back to parsing as TSV file, replacing double with single quotes
+    // to avoid parse errors
+    data = Utilities.parseCsv(csvStr.replace(/"/g, "'"), "\t");
+  }
   var sheet = ss.getActiveSheet();
   if (sheet.getLastRow() == 0) {
     // use the active sheet if empty and rename it
