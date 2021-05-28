@@ -8,9 +8,9 @@ Systematic reviews and meta-analyses can use this tool to integrate bibliographi
 Citation-Overlap is available as a graphical application in two different flavors.
 
 - Desktop application: [packages available for Windows, macOS, and Linux](https://github.com/stephansanders/citation-overlap/releases/latest)
-- Web app: Google Sheets Add-on (available soon)
+- [Web app](https://script.google.com/macros/s/AKfycbwXJ0AeS1u7bY9koWhkODuP62b4gGiBCVX5mUboawBU62rfUsvAx-CFuWxbCr9CqKeMvw/exec) with Google Sheets
 
-The desktop application can also be run as an automated command-line tool.
+We recommend the desktop application for simplicity and speed. It can also be run as an automated command-line tool. The web app requires accepting Google permissions to save and show data in a Google Sheets spreadsheet and process data in a server running the Python code in this repo.
 
 ## Sample Data
 
