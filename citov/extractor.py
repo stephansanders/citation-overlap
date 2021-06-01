@@ -38,7 +38,6 @@ class DbExtractor(overlapper.DbMatcher):
 	Attributes:
 		saveSep (str): Separator/delimiter to use when exporting data frames;
 			defaults to None to not export.
-		globalJournalKeyDict (dict): Journal key dict.
 		dfsParsed (OrderedDict): Dictionary of database names to
 			parsed database data frames; defaults to an empty dictionary.
 		dfOverlaps (:obj:`pd.DataFrame`): Data frame of databases processed
@@ -46,7 +45,7 @@ class DbExtractor(overlapper.DbMatcher):
 
 	"""
 	#: str: Default overlaps file output filename.
-	DEFAULT_OVERLAPS_PATH = 'medline_embase_scopus_combo'
+	DEFAULT_OVERLAPS_PATH = 'citation_combo'
 
 	_YAML_MATCHER = {
 		'ExtractKeys': ExtractKeys,
