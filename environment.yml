@@ -5,6 +5,7 @@ dependencies:
   - python=3.6
   - traitsui
   - pyqt
+  - PyQtWebEngine
   - jellyfish
   - pandas
   - pyyaml
