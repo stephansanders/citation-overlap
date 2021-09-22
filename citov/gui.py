@@ -134,12 +134,17 @@ class CiteOverlapHandler(Handler):
 		table_widgets = info.ui.control.findChildren(QtWidgets.QTableView)
 		for table in table_widgets:
 			table.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignLeft)
-
-		for i, view in enumerate(info.object.importViews):
+		
+		views = list(info.object.importViews)
+		views.append(None)
+		for i, view in enumerate(views):
 			# rename tabs in all tabbed panes since the CiteImport triggered
-			# names appear to be overridden
+			# names appear to be overridden, with one extra iteration to
+			# change the last ("Overlaps") tab in the largest Tabbed group
 			info.object.renameSheetTab = i
-			info.object.renameSheetName = _displayExtractor(view.extractor)
+			# any string to trigger change if view is None
+			info.object.renameSheetName = (
+				'change' if view is None else _displayExtractor(view.extractor))
 			self.object_renameSheetName_changed(info)
 		
 		# trigger renaming the overlaps tab in the largest tabbed pane
