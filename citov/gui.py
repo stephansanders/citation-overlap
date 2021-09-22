@@ -12,9 +12,9 @@ from PyQt5 import QtWidgets, QtCore
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 from pyface.api import FileDialog, OK
 from traits.api import HasTraits, on_trait_change, Int, Str, Button, \
-	Array, push_exception_handler, File, List, Instance, Property
+	Array, push_exception_handler, File, HTML, List, Instance, Property
 from traitsui.api import Handler, View, Item, Group, HGroup, VGroup, Tabbed, \
-	HSplit, TabularEditor, FileEditor, CheckListEditor
+	HSplit, HTMLEditor, TabularEditor, FileEditor, CheckListEditor
 from traitsui.tabular_adapter import TabularAdapter
 
 from citov import config, extractor
@@ -150,7 +150,14 @@ class CiteOverlapHandler(Handler):
 		# trigger renaming the overlaps tab in the largest tabbed pane
 		info.object.renameSheetTab = len(info.object.importViews)
 		info.object.renameSheetName = ''
-
+	
+	@staticmethod
+	def getSheetsTabWidget(info):
+		tabWidgets = info.ui.control.findChildren(QtWidgets.QTabWidget)
+		if len(tabWidgets) < 1:
+			return []
+		return tabWidgets[:-1]
+	
 	def object_selectSheetTab_changed(self, info):
 		"""Select the given tab specified by
 		:attr:`CiteOverlapGUI.selectSheetTab`.
@@ -160,9 +167,9 @@ class CiteOverlapHandler(Handler):
 
 		"""
 		# find the tab widget QTabWidget and select the given tab
-		tab_widgets = info.ui.control.findChildren(QtWidgets.QTabWidget)
-		for tab_widget in tab_widgets:
-			tab_widget.setCurrentIndex(info.object.selectSheetTab)
+		tabWidgets = self.getSheetsTabWidget(info)
+		for tabWidget in tabWidgets:
+			tabWidget.setCurrentIndex(info.object.selectSheetTab)
 	
 	def object_renameSheetName_changed(self, info):
 		"""Handler to rename sheets.
@@ -176,16 +183,16 @@ class CiteOverlapHandler(Handler):
 			return
 		
 		# find all tabbed panes, which contain different numbers of "other" tabs
-		tab_widgets = info.ui.control.findChildren(QtWidgets.QTabWidget)
-		for tab_widget in tab_widgets:
+		tabWidgets = self.getSheetsTabWidget(info)
+		for tabWidget in tabWidgets:
 			# rename tab from name trait unless the last tab, assumed to be
 			# the overlaps tab
-			tabCount = tab_widget.count()
+			tabCount = tabWidget.count()
 			tabi = info.object.renameSheetTab
 			name = (
 				info.object.renameSheetName if tabi < tabCount - 1
 				else self.TAB_OVERLAPS)
-			tab_widget.setTabText(tabi, name)
+			tabWidget.setTabText(tabi, name)
 		
 		# reset name to allow other dropdowns set to the same extractor name
 		# as the last chosen extractor to trigger a name change
@@ -265,7 +272,7 @@ class CiteOverlapGUI(HasTraits):
 	renameSheetTab = Int(-1)  # tab index to rename
 	renameSheetName = Str  # new tab name
 
-	# Control panel controls
+	# CONTROL PANEL TRAITS
 
 	# citation list import views
 	importMedline = Instance(CiteImport)
@@ -289,7 +296,19 @@ class CiteOverlapGUI(HasTraits):
 	_exportSep = Str
 	_exportSepNames = Instance(TraitsList)
 	_statusBarMsg = Str
-
+	
+	# HELP PANEL TRAITS
+	
+	_helpHtml = HTML(
+		f'<p>Thanks for using Citation-Overlap!</p>'
+		f'<p>For help and more resources, please visit:</p>'
+		f'<p><ul>'
+		f'<li><a href="https://github.com/stephansanders/citation-overlap">'
+		f'Software homepage and instruction</li>'
+		f'</ul></p>')
+	
+	# SHEETS TRAITS
+	
 	# counter for number of "other citation" sheets
 	_numCitOther = Int(0)
 	_tabularArgs = {
@@ -338,7 +357,9 @@ class CiteOverlapGUI(HasTraits):
 	_overlapsAdapter = TableArrayAdapter()
 	_outputTable = TabularEditor(adapter=_overlapsAdapter, **_tabularArgs)
 	_overlaps = CiteSheet(adapter=_overlapsAdapter)
-
+	
+	# TRAITUI WIDGETS
+	
 	# controls panel
 	_controlsPanel = VGroup(
 		VGroup(
@@ -382,6 +403,19 @@ class CiteOverlapGUI(HasTraits):
 			),
 			label='Detect Overlapping Citations',
 		),
+		label="Import",
+	)
+	
+	# help panel
+	_helpPanel = VGroup(
+		Item("_helpHtml", editor=HTMLEditor(format_text=True), show_label=False),
+		label="Help",
+	)
+	
+	# tabbed panel for sidebar
+	_sidebarTabs = Tabbed(
+		_controlsPanel,
+		_helpPanel,
 	)
 
 	# Tabbed viewers of tables
@@ -459,7 +493,7 @@ class CiteOverlapGUI(HasTraits):
 	# main view
 	view = View(
 		HSplit(
-			_controlsPanel,
+			_sidebarTabs,
 			# only one table view should be displayed at a time
 			Group(
 				_tableView1,
