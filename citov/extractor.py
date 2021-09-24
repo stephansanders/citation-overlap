@@ -7,6 +7,8 @@ import glob
 import logging
 import os
 import pathlib
+from typing import List
+
 import sys
 
 import pandas as pd
@@ -360,24 +362,26 @@ class DbExtractor(overlapper.DbMatcher):
 		self.dfOverlaps = df
 		return df
 
-	def exportDataFrames(self, overlapsOutPath):
-		"""Export parsed database and overlaps data frames to file.
+	def exportDataFrames(self, overlapsOutPath: str) -> List[str]:
+		"""Export parsed database and overlaps data frames to directory.
 
 		Args:
-			overlapsOutPath (str): Path to overlaps files.
+			overlapsOutPath: Path to export directory, which will be created
+				if it non-existant.
 
 		Returns:
-			List[str]: List of output messages.
+			List of output messages.
 
 		"""
-		dirPath = os.path.dirname(overlapsOutPath)
+		os.makedirs(overlapsOutPath, exist_ok=True)
 		msgs = []
 		for dbName, df in self.dfsParsed.items():
 			msgs.append(self._saveDataFrame(
-				df, os.path.join(dirPath, dbName), '_clean')[0])
+				df, os.path.join(overlapsOutPath, dbName), '_clean')[0])
 		if self.dfOverlaps is not None:
 			msgs.append(self._saveDataFrame(
-				self.dfOverlaps, overlapsOutPath)[0])
+				self.dfOverlaps,
+				os.path.join(overlapsOutPath, 'combined'))[0])
 		return msgs
 
 
