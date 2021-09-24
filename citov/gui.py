@@ -5,6 +5,7 @@ from collections import OrderedDict
 from enum import Enum, auto
 import glob
 import os
+import sys
 
 import numpy as np
 from PyQt5 import QtWidgets, QtCore
@@ -305,13 +306,16 @@ class CiteOverlapGUI(HasTraits):
 	
 	# HELP PANEL TRAITS
 	
-	_helpHtml = HTML(
-		f'<p>Thanks for using Citation-Overlap!</p>'
-		f'<p>For help and more resources, please visit:</p>'
-		f'<p><ul>'
-		f'<li><a href="https://github.com/stephansanders/citation-overlap">'
-		f'Software homepage and instruction</li>'
-		f'</ul></p>')
+	pkgDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+	docsDir = os.path.join(pkgDir, "docs")
+	if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+		# detect frozen env using the PyInstaller-specific attributes
+		# (currently works even without this setting through symlinks)
+		docsDir = os.path.realpath(os.path.join(sys._MEIPASS, "docs"))
+	with open(os.path.join(docsDir, "sidebar.html"), mode="r") as help_file:
+		helpMsg = "".join(help_file.readlines())
+	
+	_helpHtml = HTML(helpMsg)
 	
 	# SHEETS TRAITS
 	

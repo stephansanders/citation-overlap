@@ -78,6 +78,8 @@ a = Analysis(
 		(path_qt5.resolve(), pathlib.Path("Pyqt5") / "Qt5"),
 		# extractor specs
 		("../extractors", "extractors"),
+		# documentation
+		("../docs", "docs"),
 	],
 	hiddenimports=[],
 	hookspath=[],
