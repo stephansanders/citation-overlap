@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Citation-Overlap Quick Start</title>
+</head>
+<body>
+<h1>Quick Start</h1>
+
+<p>Thanks for using Citation-Overlap!</p>
+
+<p>Citation-Overlap is a tool to identify similar or duplicate citations from multiple bibliographic database searches. It imports lists from MEDLINE, Embase, and other databases, integrates them into a common format, and measures citation similarity to output a combined list showing duplicates with similarity scores. This tool facilitates deduplication for systematic reviews, meta-analyses, and other comprehensive literature searches.</p>
+
+<p>For help and more resources, please visit:<br/>
+<a href="https://github.com/stephansanders/citation-overlap">https://github.com/stephansanders/citation-overlap</a>
+</p>
+
+<h2>Load Citation Files</h2>
+
+<p>First, select the citation list's database source from the dropdown box. Click the folder icon to browse to your citation file. The list will be entered into a sheet named by the database.</p>
+
+<p>For each additional citation file, add it to the next citation group as before.</p>
+
+<p>If you have more citation files, click the "Add Sheet" button to open a new citation group. Up to 7 citation lists can be added (unlimited in the command-line tool).</p>
+
+<h2>Find Overlaps</h2>
+
+<p>To find citation overlaps across your lists, click the "Find Overlaps" button. It performs deduplication by finding similarities among citations and groups potential duplicates.</p>
+
+<p>This step may take a few minutes to complete. As lists are filtered, they will be inserted as new sheets, followed by the "overlaps" sheet when deduplication is complete.</p>
+
+<h2>(Optional) Add an Extractor for a New Database Source</h2>
+
+<p>If you have a citation list from a database not currently listed in the dropdown boxes, you can add your own extractor for the database. See the <a href="https://github.com/stephansanders/citation-overlap/tree/master/extractors">extractors folder</a> for examples of definition files for reading citation lists from various databases.</p>
+
+<p>Once you've designed your own extractor, click on the "Add Extractor" button to browse to your custom extractor. It will appear in as a choice in all the dropdown boxes.</p>
+</body>
+</html>
