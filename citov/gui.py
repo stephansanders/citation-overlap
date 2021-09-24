@@ -150,6 +150,12 @@ class CiteOverlapHandler(Handler):
 		# trigger renaming the overlaps tab in the largest tabbed pane
 		info.object.renameSheetTab = len(info.object.importViews)
 		info.object.renameSheetName = ''
+		
+		for ed in info.ui._editors:
+			if ed.name == "_helpHtml":
+				# enable opening links in an external browser in help doc
+				# editor, assumed to be a QTextBrowser
+				ed.control.setOpenExternalLinks(True)
 	
 	@staticmethod
 	def getSheetsTabWidget(info):
