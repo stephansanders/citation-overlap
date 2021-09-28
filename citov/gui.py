@@ -767,18 +767,17 @@ class CiteOverlapGUI(HasTraits):
 
 	@on_trait_change('_exportBtn')
 	def exportTables(self):
-		"""Export tables to a folder."""
+		"""Export tables to a files."""
 		self.dbExtractor.saveSep = self._EXPORT_SEPS[self._exportSep]
 		try:
-			# prompt user to select a folder output path and save each filtered,
-			# cleaned citation list along with the combined, overlapped list;
-			# TODO: file dialog does not allow selecting an existing directory
-			# WORKAROUND: select parent dir and type in the existing dir
+			# prompt user to select an output file path for the combined list;
+			# save along with filtered folders in a separate dir there
 			save_path = self._getFileDialogPath(
 				self.dbExtractor.DEFAULT_OVERLAPS_PATH, "save as")
 			self.dbExtractor.exportDataFrames(save_path)
 			self._statusBarMsg = (
-				f'Saved filtered tables and combined table to: {save_path}')
+				f'Saved combined table to "{save_path}" and filtered tables '
+				f'alongside in "{self.dbExtractor.DEFAULT_CLEANED_DIR_PATH}"')
 		except FileNotFoundError:
 			print("Skipping file save")
 
