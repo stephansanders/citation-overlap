@@ -46,8 +46,10 @@ class DbExtractor(overlapper.DbMatcher):
 			for overlaps; defaults to None.
 
 	"""
-	#: str: Default overlaps file output filename.
-	DEFAULT_OVERLAPS_PATH = 'citation_combo'
+	#: Default overlaps file output filename.
+	DEFAULT_OVERLAPS_PATH: str = 'overlapped'
+	#: Default folder name for cleaned citation lists.
+	DEFAULT_CLEANED_DIR_PATH: str = 'cleaned'
 
 	_YAML_MATCHER = {
 		'ExtractKeys': ExtractKeys,
@@ -363,25 +365,26 @@ class DbExtractor(overlapper.DbMatcher):
 		return df
 
 	def exportDataFrames(self, overlapsOutPath: str) -> List[str]:
-		"""Export parsed database and overlaps data frames to directory.
+		"""Export parsed database and overlaps data frames to a directory.
 
 		Args:
-			overlapsOutPath: Path to export directory, which will be created
-				if it non-existant.
+			overlapsOutPath: Path to export file. Parents directories which
+				will be created if necessary.
 
 		Returns:
 			List of output messages.
 
 		"""
-		os.makedirs(overlapsOutPath, exist_ok=True)
+		outDirCleaned = os.path.join(
+			os.path.dirname(overlapsOutPath), self.DEFAULT_CLEANED_DIR_PATH)
+		os.makedirs(outDirCleaned, exist_ok=True)
 		msgs = []
 		for dbName, df in self.dfsParsed.items():
 			msgs.append(self._saveDataFrame(
-				df, os.path.join(overlapsOutPath, dbName), '_clean')[0])
+				df, os.path.join(outDirCleaned, dbName), '_clean')[0])
 		if self.dfOverlaps is not None:
 			msgs.append(self._saveDataFrame(
-				self.dfOverlaps,
-				os.path.join(overlapsOutPath, 'combined'))[0])
+				self.dfOverlaps, overlapsOutPath)[0])
 		return msgs
 
 
