@@ -7,7 +7,7 @@ import glob
 import logging
 import os
 import pathlib
-from typing import List
+from typing import List, Optional, Callable
 
 import sys
 
@@ -323,7 +323,7 @@ class DbExtractor(overlapper.DbMatcher):
 			raise FileNotFoundError(f'Could not find extrator for "{path}"')
 		return df_out, dbName
 
-	def combineOverlaps(self):
+	def combineOverlaps(self, fn_prog: Optional[Callable[[int, str], None]] = None):
 		"""Combine overlaps from extracted databases in :attr:`dbParsed`.
 
 		Returns:
@@ -347,12 +347,24 @@ class DbExtractor(overlapper.DbMatcher):
 		idToDistance = {}
 		globalmatchCount = 0
 
+		# set up overlap detector and progress trackers
 		dbOverlapper = overlapper.DbOverlapper(self.dbsParsed)
+		progIncr = 100 // (len(self.dbsParsed) + 1)
+		progPct = 0
 		for dbName, dbDict in self.dbsParsed.items():
+			if fn_prog:
+				# update progress for start of processing this DB
+				fn_prog(progPct, f'Processing {dbName}')
+			
 			# find overlaps among parsed dicts
 			globalmatchCount = dbOverlapper.findOverlaps(
 				records, dbDict, dbName[:3].upper(), matchGroupNew, idToGroup,
 				idToSubgroup, subgroupToId, idToDistance, globalmatchCount)
+			progPct += progIncr
+			
+			if fn_prog:
+				# update progress after processing this DB
+				fn_prog(progPct, f'Finished processing {dbName}')
 
 		# import records to data frame and sort with ungrouped rows at end,
 		# filling NA after the sort
@@ -362,6 +374,8 @@ class DbExtractor(overlapper.DbMatcher):
 		df['Group'] = df['Group'].astype(str).str.split('.', 1, expand=True)
 		print(df)
 		self.dfOverlaps = df
+		if fn_prog:
+			fn_prog(100, f'Finished finding overlaps')
 		return df
 
 	def exportDataFrames(self, overlapsOutPath: str) -> List[str]:
