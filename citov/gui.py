@@ -3,7 +3,7 @@ from typing import Union
 
 import math
 from collections import OrderedDict
-from enum import Enum, auto
+import logging
 import glob
 import os
 
@@ -23,6 +23,9 @@ from traitsui.api import Handler, View, Item, Group, HGroup, VGroup, Tabbed, \
 from traitsui.tabular_adapter import TabularAdapter
 
 from citov import config, extractor, overlaps_thread
+
+#: Logger for this module.
+_logger: logging.Logger = logging.getLogger().getChild(__name__)
 
 
 def main():
@@ -706,7 +709,15 @@ class CiteOverlapGUI(HasTraits):
 			extractorPath = self._extractor_paths[event.object.extractor]
 			df, dbName = self.dbExtractor.extractDb(path, extractorPath)
 			event.object.dbName = dbName
-			self._statusBarMsg = f'Imported file from {path}'
+			try:
+				self.dbExtractor.checkExtraction(df)
+				self._statusBarMsg = f'Imported file from {path}'
+			except SyntaxWarning as e:
+				msg = \
+					f'WARNING: {str(e)}. Please check the selected file ' \
+					f'source and reload the citation file.'
+				self._statusBarMsg = msg
+				_logger.warning(msg)
 			sheet = event.object.sheet
 			if df is not None and sheet is not None:
 				# output data frame to associated table
