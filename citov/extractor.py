@@ -323,6 +323,21 @@ class DbExtractor(overlapper.DbMatcher):
 			raise FileNotFoundError(f'Could not find extrator for "{path}"')
 		return df_out, dbName
 
+	@staticmethod
+	def checkExtraction(df: pd.DataFrame):
+		"""Check the database extraction result.
+		
+		Args:
+			df: Extracted database as a data frame.
+
+		Raises:
+			`SyntaxWarning`: warning if no author names were detected.
+
+		"""
+		# TODO: check additional fields?
+		if all(df['Author_Names'] == '.'):
+			raise SyntaxWarning('No author names detected')
+
 	def combineOverlaps(self, fn_prog: Optional[Callable[[int, str], None]] = None):
 		"""Combine overlaps from extracted databases in :attr:`dbParsed`.
 
