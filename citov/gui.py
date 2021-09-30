@@ -1,10 +1,13 @@
 #!/usr/bin/env python
+from typing import Union
 
 import math
 from collections import OrderedDict
 from enum import Enum, auto
 import glob
 import os
+
+import pandas as pd
 import sys
 
 import numpy as np
@@ -15,10 +18,11 @@ from pyface.api import FileDialog, OK
 from traits.api import HasTraits, on_trait_change, Int, Str, Button, \
 	Array, push_exception_handler, File, HTML, List, Instance, Property
 from traitsui.api import Handler, View, Item, Group, HGroup, VGroup, Tabbed, \
-	HSplit, HTMLEditor, TabularEditor, FileEditor, CheckListEditor
+	HSplit, HTMLEditor, TabularEditor, FileEditor, CheckListEditor, \
+	ProgressEditor
 from traitsui.tabular_adapter import TabularAdapter
 
-from citov import config, extractor
+from citov import config, extractor, overlaps_thread
 
 
 def main():
@@ -295,8 +299,10 @@ class CiteOverlapGUI(HasTraits):
 	_extractorNames = Instance(TraitsList)
 	_extractorAddBtn = Button('Add Extractor')
 
-	# button to find overlaps
+	# button to find overlaps and progress bar
 	_overlapBtn = Button('Find Overlaps')
+	_progBarPct = Int(0)
+	_progBarMsg = Str('Awaiting overlaps')
 
 	# table export
 	_exportBtn = Button('Export Tables')
@@ -404,6 +410,8 @@ class CiteOverlapGUI(HasTraits):
 			HGroup(
 				Item('_overlapBtn', show_label=False, springy=True),
 			),
+			Item('_progBarPct', show_label=False, editor=ProgressEditor(
+				min=0, max=100, message_name='_progBarMsg')),
 			HGroup(
 				Item('_exportBtn', show_label=False, springy=True),
 				Item(
@@ -561,8 +569,9 @@ class CiteOverlapGUI(HasTraits):
 		self._exportSepNames.selections = list(self._EXPORT_SEPS.keys())
 		self._exportSep = self._exportSepNames.selections[0]
 
-		# extractor instance
+		# extractor and overlaps thread instances
 		self.dbExtractor = extractor.DbExtractor()
+		self._overlapsThread = None
 		
 		# last opened directory
 		self._save_dir = None
@@ -709,13 +718,27 @@ class CiteOverlapGUI(HasTraits):
 			self._statusBarMsg = str(e)
 		return None
 
-	@on_trait_change('_overlapBtn')
-	def findOverlaps(self):
-		"""Find overlaps."""
-		try:
-			# find overlaps
-			df = self.dbExtractor.combineOverlaps()
-			if df is None:
+	def _updateProgBar(self, pct: int, msg: str):
+		""""Update progress bar.
+		
+		Args:
+			pct: Percentage complete, from 0-100.
+			msg: Message to display.
+
+		"""
+		self._progBarPct = pct
+		self._progBarMsg = msg
+
+	def _overlapsHandler(self, result: Union[pd.DataFrame, str]):
+		"""Handle result from finding overlaps.
+		
+		Args:
+			result: Data frame of overlaps or message.
+		
+		"""
+		if isinstance(result, pd.DataFrame):
+			self._progBarPct = 100
+			if result is None:
 				# clear any existing data in sheet if no citation lists
 				self._overlaps.data = np.empty((0, 0))
 				self._statusBarMsg = 'No citation lists found'
@@ -723,17 +746,20 @@ class CiteOverlapGUI(HasTraits):
 			
 			# populate overlaps sheet
 			self._overlaps.adapter._widths, self._overlaps.adapter.columns, \
-				self._overlaps.data = self._df_to_cols(df)
+				self._overlaps.data = self._df_to_cols(result)
 			self.selectSheetTab = self._DEFAULT_NUM_IMPORTS + self._numCitOther
 			self._statusBarMsg = 'Found overlaps across databases'
-			
-		except TypeError as e:
-			# TODO: catch additional errors that may occur with overlaps
-			msg = 'An erorr occurred while finding overlaps across databases.' \
-				' Please try again, or check the logs for more details.'
-			self._statusBarMsg = msg
-			print(msg)
-			print(e)
+		elif isinstance(result, str):
+			# show message
+			self._statusBarMsg = result
+
+	@on_trait_change('_overlapBtn')
+	def findOverlaps(self):
+		"""Find overlaps in a thread."""
+		self._progBarPct = 0
+		self._overlapsThread = overlaps_thread.OverlapsThread(
+			self.dbExtractor, self._overlapsHandler, self._updateProgBar)
+		self._overlapsThread.start()
 
 	def _getFileDialogPath(self, default_path='', mode='open'):
 		"""Get a path from the user through a file dialog.
