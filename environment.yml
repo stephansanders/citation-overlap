@@ -3,9 +3,8 @@ channels:
   - defaults
 dependencies:
   - python=3.6
-  - traitsui
+  - traitsui>=7.2.0
   - pyqt
-  - PyQtWebEngine
   - jellyfish
   - pandas
   - pyyaml
