@@ -15,8 +15,7 @@ config = {
 	"python_requires": ">=3.6",
 	"install_requires": [
 		"PyQt5",
-		"PyQtWebEngine",
-		"traitsui",
+		"traitsui >= 7.2.0",
 		"jellyfish",
 		"pandas",
 		"pyyaml",
