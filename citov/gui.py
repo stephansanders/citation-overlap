@@ -161,9 +161,10 @@ class CiteOverlapHandler(Handler):
 		
 		for ed in info.ui._editors:
 			if ed.name == "_helpHtml":
-				# enable opening links in an external browser in help doc
-				# editor, assumed to be a QTextBrowser
-				ed.control.setOpenExternalLinks(True)
+				if hasattr(ed.control, "setOpenExternalLinks"):
+					# enable opening links in an external browser in help doc
+					# editor, a QTextBrowser if QtWebEngine is not available
+					ed.control.setOpenExternalLinks(True)
 	
 	@staticmethod
 	def getSheetsTabWidget(info):
