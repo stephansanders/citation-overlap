@@ -12,6 +12,12 @@ Citation-Overlap is available as a graphical application in two different flavor
 
 We recommend the desktop application for simplicity and speed. It can also be run as an automated command-line tool. The web app requires accepting Google permissions to save and show data in a Google Sheets spreadsheet and process data in a server running the Python code in this repo.
 
+
+## Quick Start Tutorial
+
+[![Watch the video](https://img.youtube.com/vi/iufYxoXaZBw/hqdefault.jpg)](https://youtu.be/iufYxoXaZBw)
+
+
 ## Sample Data
 
 - [Citation lists from MEDLINE, Embase, and Scopus for autism sequencing](https://github.com/stephansanders/citation-overlap/releases/download/v0.9.1/AutismSequencingCitations_2020-07-08.zip)
